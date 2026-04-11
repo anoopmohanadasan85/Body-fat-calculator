@@ -653,8 +653,8 @@
 
   <!-- App Tab Navigation -->
   <div class="method-tabs" style="margin-bottom:24px">
-    <button class="tab-btn active" id="app-tab-calc" onclick="switchAppTab('calc')">⚖ Calculator</button>
-    <button class="tab-btn" id="app-tab-progress" onclick="switchAppTab('progress')">📈 Progress</button>
+    <button class="tab-btn active" id="app-tab-calc" onclick="switchAppTab('calc')">Calculator</button>
+    <button class="tab-btn" id="app-tab-progress" onclick="switchAppTab('progress')">Progress</button>
   </div>
 
   <!-- ===== CALCULATOR TAB ===== -->
@@ -701,7 +701,12 @@
         <div class="result-label">Body Fat Percentage</div>
         <div class="result-value" id="result-value">--<sup>%</sup></div>
       </div>
-      <div class="category-badge" id="category-badge">--</div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:10px">
+        <div class="category-badge" id="category-badge">--</div>
+        <button id="save-progress-btn" onclick="saveToProgress()" style="display:none;padding:8px 14px;border:none;border-radius:10px;background:var(--surface2);border:1.5px solid var(--border);color:var(--muted);font-family:'Syne',sans-serif;font-size:11px;font-weight:600;letter-spacing:1px;cursor:pointer;transition:all 0.2s;white-space:nowrap">
+          Save to Progress
+        </button>
+      </div>
     </div>
 
     <div class="progress-section">
@@ -738,7 +743,7 @@
     <div id="advice-section" style="display:none;margin-top:24px">
       <div id="advice-card" style="border-radius:14px;border:1px solid var(--border);overflow:hidden">
         <div id="advice-header" style="padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)">
-          <span style="font-size:16px">💡</span>
+          <span style="font-size:16px">&#128161;</span>
           <span style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:600" id="advice-header-label">Personalised Guidance</span>
           <span id="advice-badge" style="margin-left:auto;font-size:11px;padding:3px 12px;border-radius:20px;font-family:'Syne',sans-serif;font-weight:600"></span>
         </div>
@@ -750,7 +755,7 @@
   <!-- Disclaimer -->
   <div class="card" style="margin-top:20px;animation:fadeUp 0.6s 0.3s ease both">
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <span style="font-size:18px;flex-shrink:0">⚠️</span>
+      <span style="font-size:18px;flex-shrink:0">⚠</span>
       <div>
         <div style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label);margin-bottom:8px">Disclaimer</div>
         <p style="font-size:13px;color:var(--muted);line-height:1.7;margin:0">This tool provides general body composition estimates for informational purposes only. Results may vary depending on measurement accuracy and individual body type. This is <strong style="color:var(--label)">not a substitute for professional medical advice.</strong> Always consult a qualified healthcare provider before making changes to your diet or exercise routine.</p>
@@ -765,7 +770,7 @@
 
     <!-- Device notice -->
     <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:rgba(0,184,255,0.06);border:1px solid rgba(0,184,255,0.18);border-radius:12px;margin-bottom:20px">
-      <span style="font-size:16px;flex-shrink:0">📱</span>
+      <span style="font-size:16px;flex-shrink:0">&#128241;</span>
       <p style="font-size:12px;color:var(--label);line-height:1.65;margin:0"><strong style="color:var(--accent2)">Device-only storage</strong> — Your progress is saved locally on this device and browser only. It will not sync across devices and will be lost if you clear your browser data. No account or login is required.</p>
     </div>
 
@@ -1490,6 +1495,14 @@
     document.getElementById('result-card').classList.add('show');
     document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
+    // Show save button and reset its state
+    const saveBtn = document.getElementById('save-progress-btn');
+    saveBtn.style.display = 'block';
+    saveBtn.textContent = 'Save to Progress';
+    saveBtn.style.color = 'var(--muted)';
+    saveBtn.style.borderColor = 'var(--border)';
+    saveBtn.style.background = 'var(--surface2)';
+
     // Store for progress tracker
     lastResult = { bf, category: cat.label, color: cat.color };
 
@@ -1592,7 +1605,7 @@
       <div style="font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Where to start</div>
       ${stepsHTML}
       <div style="margin-top:16px;padding:14px 16px;background:${col}10;border:1px solid ${col}30;border-radius:10px;font-size:13px;color:${col};line-height:1.65">
-        🎯 ${a.target}
+        Target: ${a.target}
       </div>
     `;
   }
@@ -1623,6 +1636,31 @@
     localStorage.setItem('bf_history', JSON.stringify(h));
   }
 
+  function saveToProgress() {
+    if (!lastResult) return;
+    const h = getHistory();
+    h.unshift({
+      bf: lastResult.bf,
+      category: lastResult.category,
+      color: lastResult.color,
+      date: new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }),
+      ts: Date.now()
+    });
+    saveHistory(h);
+
+    const btn = document.getElementById('save-progress-btn');
+    btn.textContent = 'Saved!';
+    btn.style.color = '#00e5a0';
+    btn.style.borderColor = '#00e5a0';
+    btn.style.background = 'rgba(0,229,160,0.08)';
+    setTimeout(() => {
+      btn.textContent = 'Save to Progress';
+      btn.style.color = 'var(--muted)';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.background = 'var(--surface2)';
+    }, 2500);
+  }
+
   function logLatestResult() {
     if (!lastResult) {
       alert('Please run a calculation in the Calculator tab first, then come back to log it.');
@@ -1633,7 +1671,7 @@
     saveHistory(h);
     renderProgress();
     const btn = document.getElementById('pt-log-btn');
-    btn.textContent = '✓ Logged!';
+    btn.textContent = 'Logged!';
     btn.style.borderColor = 'var(--accent)';
     btn.style.color = 'var(--accent)';
     setTimeout(() => {
@@ -1731,7 +1769,7 @@
           <span style="color:var(--muted)">${e.date}</span>
           <span style="color:var(--text);font-weight:600">${e.bf.toFixed(1)}%</span>
           <span style="font-size:10px;padding:3px 10px;border-radius:20px;font-weight:600;background:${e.color}20;color:${e.color};border:1px solid ${e.color}40">${e.category}</span>
-          <button onclick="deleteEntry(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">×</button>
+          <button onclick="deleteEntry(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">&times;</button>
         </div>
       `).join('');
     }
@@ -1748,14 +1786,14 @@
       const ratePerWeek = (first - cur) / weeks;
       if (ratePerWeek > 0 && cur > targetMax) {
         const weeksLeft = Math.ceil((cur - targetMax) / ratePerWeek);
-        goalResult.innerHTML = `🎯 At your current rate of <strong>${ratePerWeek.toFixed(2)}%/week</strong>, you'll reach <strong>${targetCat}</strong> in approximately <strong>${weeksLeft} weeks</strong>.`;
+        goalResult.innerHTML = `Target: At your current rate of <strong>${ratePerWeek.toFixed(2)}%/week</strong>, you'll reach <strong>${targetCat}</strong> in approximately <strong>${weeksLeft} weeks</strong>.`;
         goalResult.style.display = 'block';
       } else if (cur <= targetMax) {
-        goalResult.innerHTML = `✅ You've already reached <strong>${targetCat}</strong>! Consider setting a new goal.`;
+        goalResult.innerHTML = `Done! You've already reached <strong>${targetCat}</strong>! Consider setting a new goal.`;
         goalResult.style.color = '#00e5a0';
         goalResult.style.display = 'block';
       } else {
-        goalResult.innerHTML = `📊 Log more entries over time to see your estimated timeline.`;
+        goalResult.innerHTML = `Note: Log more entries over time to see your estimated timeline.`;
         goalResult.style.display = 'block';
       }
     } else {
