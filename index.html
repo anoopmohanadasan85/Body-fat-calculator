@@ -204,7 +204,7 @@
     font-size: 14px;
     font-weight: 600;
     cursor: pointer;
-    transition: all 0.2s;
+    transition: all 0.3s ease;
     display: flex;
     align-items: center;
     justify-content: center;
@@ -215,6 +215,12 @@
     border-color: var(--accent);
     color: var(--accent);
     background: rgba(0, 229, 160, 0.07);
+  }
+
+  .metric-active .gender-btn.active {
+    border-color: #FF9966;
+    color: #FF9966;
+    background: rgba(204, 85, 51, 0.07);
   }
 
   /* Field rows */
@@ -272,10 +278,100 @@
     top: 50%;
     transform: translateY(-50%);
     font-size: 12px;
-    color: var(--muted);
+    color: var(--accent);
     pointer-events: none;
-    font-weight: 500;
+    font-weight: 600;
+    transition: color 0.3s ease;
   }
+
+  .metric-active .unit {
+    color: #FF9966;
+  }
+
+  /* Info tooltip */
+  .label-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .info-btn {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    color: var(--accent2);
+    font-size: 10px;
+    font-weight: 700;
+    cursor: pointer;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    line-height: 1;
+    flex-shrink: 0;
+    transition: background 0.2s;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  .info-btn:hover { background: rgba(0,184,255,0.15); }
+
+  .tooltip-overlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 100;
+    align-items: center;
+    justify-content: center;
+    padding: 24px;
+    background: rgba(0,0,0,0.6);
+    backdrop-filter: blur(4px);
+  }
+
+  .tooltip-overlay.show { display: flex; }
+
+  .tooltip-box {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 24px;
+    max-width: 360px;
+    width: 100%;
+    max-height: 88vh;
+    overflow-y: auto;
+    animation: fadeUp 0.25s ease both;
+  }
+
+  .tooltip-title {
+    font-family: 'Syne', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+    margin-bottom: 12px;
+  }
+
+  .tooltip-body {
+    font-size: 14px;
+    color: var(--label);
+    line-height: 1.7;
+  }
+
+  .tooltip-close {
+    margin-top: 20px;
+    width: 100%;
+    padding: 12px;
+    border: none;
+    border-radius: 10px;
+    background: var(--surface2);
+    color: var(--text);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.2s;
+  }
+
+  .tooltip-close:hover { background: var(--border); }
 
   /* Unit system toggle */
   .unit-toggle {
@@ -302,12 +398,12 @@
     background: var(--surface2);
     border: 1.5px solid var(--border);
     border-radius: 24px;
-    transition: all 0.25s;
+    transition: all 0.3s ease;
   }
 
   .toggle-switch input:checked + .toggle-track {
-    background: rgba(0, 229, 160, 0.15);
-    border-color: var(--accent);
+    background: rgba(205, 90, 50, 0.18);
+    border-color: #FF9966;
   }
 
   .toggle-thumb {
@@ -318,16 +414,23 @@
     height: 16px;
     background: var(--muted);
     border-radius: 50%;
-    transition: all 0.25s;
+    transition: all 0.3s ease;
   }
 
   .toggle-switch input:checked ~ .toggle-thumb {
     left: 23px;
-    background: var(--accent);
+    background: #FF9966;
   }
 
-  .unit-label { font-weight: 500; }
-  .unit-label.active { color: var(--accent); }
+  .unit-label {
+    font-weight: 600;
+    color: var(--accent);
+    transition: color 0.3s ease;
+  }
+
+  .unit-toggle.metric-active .unit-label {
+    color: #FF9966;
+  }
 
   /* Calculate button */
   .calc-btn {
@@ -559,7 +662,7 @@
   <div class="card">
     <!-- Unit toggle -->
     <div class="unit-toggle">
-      <span class="unit-label" id="lbl-imperial" style="color:var(--accent)">Imperial</span>
+      <span class="unit-label">Units:</span>
       <label class="toggle-switch">
         <input type="checkbox" id="unit-toggle" onchange="toggleUnits()">
         <div class="toggle-track"></div>
@@ -626,6 +729,15 @@
   </div>
 </div>
 
+<!-- Tooltip overlay -->
+<div class="tooltip-overlay" id="tooltip-overlay" onclick="closeTooltip()">
+  <div class="tooltip-box" onclick="event.stopPropagation()">
+    <div class="tooltip-title" id="tooltip-title"></div>
+    <div class="tooltip-body" id="tooltip-body"></div>
+    <button class="tooltip-close" onclick="closeTooltip()">Got it</button>
+  </div>
+</div>
+
 <script>
   let method = 'navy';
   let gender = 'male';
@@ -637,44 +749,433 @@
     jackson: '<strong>Jackson-Pollock 3-Site</strong> — Uses skinfold caliper measurements at 3 body sites. More accurate but requires calipers.'
   };
 
+  // Realistic SVG body silhouettes with measurement overlays
+  function getBodySVG(fieldId, g) {
+    const isFemale = g === 'female';
+    const skin = '#F4A46A';
+    const skinDark = '#e0874a';
+    const skinShade = '#c86e38';
+    const skinLight = '#F9C08A';
+
+    const maleSilhouette = `
+      <defs>
+        <radialGradient id="headGm" cx="42%" cy="36%" r="58%">
+          <stop offset="0%" stop-color="${skinLight}"/>
+          <stop offset="100%" stop-color="${skinDark}"/>
+        </radialGradient>
+        <linearGradient id="bodyGm" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="${skinShade}"/>
+          <stop offset="25%" stop-color="${skin}"/>
+          <stop offset="50%" stop-color="${skinLight}"/>
+          <stop offset="75%" stop-color="${skin}"/>
+          <stop offset="100%" stop-color="${skinShade}"/>
+        </linearGradient>
+        <linearGradient id="limGm" x1="0%" y1="0%" x2="100%" y2="100%">
+          <stop offset="0%" stop-color="${skin}"/>
+          <stop offset="100%" stop-color="${skinDark}"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Head — lean oval, slightly narrow -->
+      <ellipse cx="100" cy="33" rx="18" ry="22" fill="url(#headGm)"/>
+      <!-- Ear left -->
+      <ellipse cx="82" cy="34" rx="3" ry="5" fill="${skinDark}"/>
+      <!-- Ear right -->
+      <ellipse cx="118" cy="34" rx="3" ry="5" fill="${skinDark}"/>
+
+      <!-- Neck — slim -->
+      <path d="M93 53 Q100 57 107 53 L108 66 Q100 69 92 66 Z" fill="${skin}"/>
+
+      <!-- Shoulder slope left -->
+      <path d="M92 66 Q78 68 65 78 Q58 83 56 90 L63 92 Q70 84 82 78 Q90 74 94 72 Z" fill="${skin}"/>
+      <!-- Shoulder slope right -->
+      <path d="M108 66 Q122 68 135 78 Q142 83 144 90 L137 92 Q130 84 118 78 Q110 74 106 72 Z" fill="${skin}"/>
+
+      <!-- Torso — lean: wider shoulders tapering hard to narrow waist -->
+      <path d="
+        M63 92
+        Q58 102 57 114
+        Q56 124 58 132
+        Q60 138 63 142
+        Q72 146 100 147
+        Q128 146 137 142
+        Q140 138 142 132
+        Q144 124 143 114
+        Q142 102 137 92
+        Q118 97 100 97
+        Q82 97 63 92 Z
+      " fill="url(#bodyGm)"/>
+
+      <!-- Left deltoid bump -->
+      <path d="M56 90 Q48 96 46 106 Q45 114 50 118 Q56 120 60 116 Q62 108 63 100 Q63 94 63 92 Z" fill="${skin}"/>
+      <!-- Right deltoid bump -->
+      <path d="M144 90 Q152 96 154 106 Q155 114 150 118 Q144 120 140 116 Q138 108 137 100 Q137 94 137 92 Z" fill="${skin}"/>
+
+      <!-- Left upper arm — slim -->
+      <path d="M50 118 Q44 128 42 140 Q40 152 42 162 Q44 168 48 170 Q53 171 56 167 Q58 158 57 146 Q56 132 58 120 Q56 118 50 118 Z" fill="${skin}"/>
+      <!-- Left forearm — tapered -->
+      <path d="M42 162 Q38 172 38 184 Q38 194 42 200 Q45 204 49 202 Q52 198 52 188 Q52 176 48 168 Q48 164 48 170 Q53 171 56 167 Z" fill="${skinDark}"/>
+      <!-- Left hand -->
+      <ellipse cx="45" cy="203" rx="5.5" ry="7.5" fill="${skin}"/>
+
+      <!-- Right upper arm — slim -->
+      <path d="M150 118 Q156 128 158 140 Q160 152 158 162 Q156 168 152 170 Q147 171 144 167 Q142 158 143 146 Q144 132 142 120 Q144 118 150 118 Z" fill="${skin}"/>
+      <!-- Right forearm — tapered -->
+      <path d="M158 162 Q162 172 162 184 Q162 194 158 200 Q155 204 151 202 Q148 198 148 188 Q148 176 152 168 Q152 164 152 170 Q147 171 144 167 Z" fill="${skinDark}"/>
+      <!-- Right hand -->
+      <ellipse cx="155" cy="203" rx="5.5" ry="7.5" fill="${skin}"/>
+
+      <!-- Pelvis — slim, no love handles -->
+      <path d="M63 142 Q62 150 64 156 Q72 162 100 163 Q128 162 136 156 Q138 150 137 142 Q128 146 100 147 Q72 146 63 142 Z" fill="${skinDark}"/>
+
+      <!-- Left leg upper — lean quad -->
+      <path d="M64 156 Q59 166 57 180 Q55 196 56 212 Q57 224 60 230 Q64 234 70 233 Q75 231 77 224 Q78 210 76 194 Q74 178 72 166 Q70 158 64 156 Z" fill="${skin}"/>
+      <!-- Left kneecap hint -->
+      <ellipse cx="67" cy="232" rx="7" ry="5" fill="${skinDark}" opacity="0.5"/>
+      <!-- Left shin — very slim -->
+      <path d="M56 230 Q54 244 55 256 Q56 264 61 267 Q66 268 70 265 Q72 258 72 248 Q72 238 70 233 Q64 234 60 230 Z" fill="${skin}"/>
+      <!-- Left foot -->
+      <path d="M55 260 Q53 268 57 271 Q64 273 72 270 Q75 266 74 260 Z" fill="${skinDark}"/>
+
+      <!-- Right leg upper — lean quad -->
+      <path d="M136 156 Q141 166 143 180 Q145 196 144 212 Q143 224 140 230 Q136 234 130 233 Q125 231 123 224 Q122 210 124 194 Q126 178 128 166 Q130 158 136 156 Z" fill="${skin}"/>
+      <!-- Right kneecap hint -->
+      <ellipse cx="133" cy="232" rx="7" ry="5" fill="${skinDark}" opacity="0.5"/>
+      <!-- Right shin — slim -->
+      <path d="M144 230 Q146 244 145 256 Q144 264 139 267 Q134 268 130 265 Q128 258 128 248 Q128 238 130 233 Q136 234 140 230 Z" fill="${skin}"/>
+      <!-- Right foot -->
+      <path d="M145 260 Q147 268 143 271 Q136 273 128 270 Q125 266 126 260 Z" fill="${skinDark}"/>
+
+      <!-- Collarbone line -->
+      <path d="M80 76 Q100 80 120 76" fill="none" stroke="${skinShade}" stroke-width="1.2" opacity="0.5"/>
+      <!-- Lean abs lines — subtle -->
+      <line x1="97" y1="116" x2="97" y2="140" stroke="${skinShade}" stroke-width="0.8" opacity="0.35"/>
+      <line x1="103" y1="116" x2="103" y2="140" stroke="${skinShade}" stroke-width="0.8" opacity="0.35"/>
+      <path d="M95 122 Q100 124 105 122" fill="none" stroke="${skinShade}" stroke-width="0.9" opacity="0.4"/>
+      <path d="M95 131 Q100 133 105 131" fill="none" stroke="${skinShade}" stroke-width="0.9" opacity="0.4"/>
+      <!-- Pec line -->
+      <path d="M70 100 Q84 106 98 103" fill="none" stroke="${skinShade}" stroke-width="0.9" opacity="0.3"/>
+      <path d="M130 100 Q116 106 102 103" fill="none" stroke="${skinShade}" stroke-width="0.9" opacity="0.3"/>
+    `;
+
+    const femaleSilhouette = `
+      <defs>
+        <radialGradient id="headGf" cx="42%" cy="36%" r="58%">
+          <stop offset="0%" stop-color="${skinLight}"/>
+          <stop offset="100%" stop-color="${skinDark}"/>
+        </radialGradient>
+        <linearGradient id="bodyGf" x1="0%" y1="0%" x2="100%" y2="0%">
+          <stop offset="0%" stop-color="${skinShade}"/>
+          <stop offset="25%" stop-color="${skin}"/>
+          <stop offset="50%" stop-color="${skinLight}"/>
+          <stop offset="75%" stop-color="${skin}"/>
+          <stop offset="100%" stop-color="${skinShade}"/>
+        </linearGradient>
+      </defs>
+
+      <!-- Head — softer oval -->
+      <ellipse cx="100" cy="31" rx="17" ry="21" fill="url(#headGf)"/>
+      <!-- Hair — dark flowing suggestion -->
+      <path d="M83 18 Q100 8 117 18 Q120 10 100 6 Q80 10 83 18 Z" fill="#5C3317" opacity="0.8"/>
+      <path d="M83 18 Q76 28 78 42 Q80 22 83 18 Z" fill="#5C3317" opacity="0.6"/>
+      <path d="M117 18 Q124 28 122 42 Q120 22 117 18 Z" fill="#5C3317" opacity="0.6"/>
+      <!-- Ear left -->
+      <ellipse cx="83" cy="33" rx="3" ry="4.5" fill="${skinDark}"/>
+      <!-- Ear right -->
+      <ellipse cx="117" cy="33" rx="3" ry="4.5" fill="${skinDark}"/>
+
+      <!-- Neck — slender -->
+      <path d="M94 50 Q100 54 106 50 L107 64 Q100 67 93 64 Z" fill="${skin}"/>
+
+      <!-- Shoulder slopes — narrower than male -->
+      <path d="M93 64 Q82 66 71 74 Q65 79 63 86 L69 88 Q75 82 86 76 Q92 73 95 70 Z" fill="${skin}"/>
+      <path d="M107 64 Q118 66 129 74 Q135 79 137 86 L131 88 Q125 82 114 76 Q108 73 105 70 Z" fill="${skin}"/>
+
+      <!-- Upper torso — shoulders narrow, distinct waist -->
+      <path d="
+        M69 88
+        Q65 98 64 108
+        Q63 116 65 122
+        Q68 128 72 130
+        Q84 134 100 134
+        Q116 134 128 130
+        Q132 128 135 122
+        Q137 116 136 108
+        Q135 98 131 88
+        Q116 93 100 93
+        Q84 93 69 88 Z
+      " fill="url(#bodyGf)"/>
+
+      <!-- Bust — lean, natural -->
+      <path d="M69 108 Q68 122 76 128 Q86 132 100 132 Q90 128 82 120 Q74 112 69 108 Z" fill="${skinDark}" opacity="0.28"/>
+      <path d="M131 108 Q132 122 124 128 Q114 132 100 132 Q110 128 118 120 Q126 112 131 108 Z" fill="${skinDark}" opacity="0.28"/>
+
+      <!-- Waist — very narrow athletic tuck -->
+      <path d="M72 130 Q66 138 65 146 Q65 152 68 156 Q78 160 100 161 Q122 160 132 156 Q135 152 135 146 Q134 138 128 130 Q116 134 100 134 Q84 134 72 130 Z" fill="${skin}"/>
+
+      <!-- Hip flare — feminine but lean -->
+      <path d="M68 156 Q61 163 59 172 Q58 180 62 185 Q76 191 100 192 Q124 191 138 185 Q142 180 141 172 Q139 163 132 156 Q122 160 100 161 Q78 160 68 156 Z" fill="${skinDark}"/>
+
+      <!-- Left shoulder cap -->
+      <path d="M63 86 Q56 92 54 102 Q53 110 57 114 Q62 116 66 112 Q68 104 69 96 Q69 90 69 88 Z" fill="${skin}"/>
+      <!-- Right shoulder cap -->
+      <path d="M137 86 Q144 92 146 102 Q147 110 143 114 Q138 116 134 112 Q132 104 131 96 Q131 90 131 88 Z" fill="${skin}"/>
+
+      <!-- Left upper arm — slender -->
+      <path d="M57 114 Q52 124 50 136 Q48 148 50 158 Q52 164 56 166 Q60 167 63 163 Q65 154 64 142 Q63 128 64 116 Q62 114 57 114 Z" fill="${skin}"/>
+      <!-- Left forearm -->
+      <path d="M50 158 Q46 168 46 180 Q46 190 49 196 Q52 199 55 197 Q58 193 58 183 Q58 171 55 163 Q56 166 60 167 Q63 163 64 158 Z" fill="${skinDark}"/>
+      <!-- Left hand -->
+      <ellipse cx="52" cy="198" rx="5" ry="7" fill="${skin}"/>
+
+      <!-- Right upper arm — slender -->
+      <path d="M143 114 Q148 124 150 136 Q152 148 150 158 Q148 164 144 166 Q140 167 137 163 Q135 154 136 142 Q137 128 136 116 Q138 114 143 114 Z" fill="${skin}"/>
+      <!-- Right forearm -->
+      <path d="M150 158 Q154 168 154 180 Q154 190 151 196 Q148 199 145 197 Q142 193 142 183 Q142 171 145 163 Q144 166 140 167 Q137 163 136 158 Z" fill="${skinDark}"/>
+      <!-- Right hand -->
+      <ellipse cx="148" cy="198" rx="5" ry="7" fill="${skin}"/>
+
+      <!-- Left leg — lean feminine taper -->
+      <path d="M62 185 Q57 196 55 210 Q53 226 54 240 Q55 250 59 254 Q64 257 70 255 Q74 252 75 243 Q76 229 74 214 Q72 200 70 190 Q68 184 62 185 Z" fill="${skin}"/>
+      <!-- Left knee -->
+      <ellipse cx="64" cy="254" rx="6" ry="4.5" fill="${skinDark}" opacity="0.45"/>
+      <!-- Left shin -->
+      <path d="M54 252 Q52 264 53 274 Q54 281 59 283 Q64 284 68 281 Q70 274 70 264 Q70 256 70 255 Q64 257 59 254 Z" fill="${skin}"/>
+      <!-- Left foot -->
+      <path d="M53 277 Q51 284 55 287 Q62 289 70 286 Q73 282 72 276 Z" fill="${skinDark}"/>
+
+      <!-- Right leg — lean feminine taper -->
+      <path d="M138 185 Q143 196 145 210 Q147 226 146 240 Q145 250 141 254 Q136 257 130 255 Q126 252 125 243 Q124 229 126 214 Q128 200 130 190 Q132 184 138 185 Z" fill="${skin}"/>
+      <!-- Right knee -->
+      <ellipse cx="136" cy="254" rx="6" ry="4.5" fill="${skinDark}" opacity="0.45"/>
+      <!-- Right shin -->
+      <path d="M146 252 Q148 264 147 274 Q146 281 141 283 Q136 284 132 281 Q130 274 130 264 Q130 256 130 255 Q136 257 141 254 Z" fill="${skin}"/>
+      <!-- Right foot -->
+      <path d="M147 277 Q149 284 145 287 Q138 289 130 286 Q127 282 128 276 Z" fill="${skinDark}"/>
+
+      <!-- Collarbone -->
+      <path d="M82 74 Q100 78 118 74" fill="none" stroke="${skinShade}" stroke-width="1" opacity="0.45"/>
+      <!-- Toned abs hint — subtle -->
+      <path d="M96 118 Q100 120 104 118" fill="none" stroke="${skinShade}" stroke-width="0.8" opacity="0.35"/>
+      <path d="M96 128 Q100 130 104 128" fill="none" stroke="${skinShade}" stroke-width="0.8" opacity="0.35"/>
+    `;
+
+    const silhouette = isFemale ? femaleSilhouette : maleSilhouette;
+    const vbH = isFemale ? 298 : 282;
+
+    // Indicators mapped per field - teal overlays on the realistic body
+    const acc = '#00e5a0';
+    const acc2 = '#00b8ff';
+
+    const indicators = {
+      height: `
+        <line x1="20" y1="10" x2="20" y2="${vbH-10}" stroke="${acc}" stroke-width="1.5" stroke-dasharray="4,3" opacity="0.9"/>
+        <line x1="14" y1="10" x2="26" y2="10" stroke="${acc}" stroke-width="2.5"/>
+        <line x1="14" y1="${vbH-10}" x2="26" y2="${vbH-10}" stroke="${acc}" stroke-width="2.5"/>
+        <polygon points="20,16 17,24 23,24" fill="${acc}"/>
+        <polygon points="20,${vbH-16} 17,${vbH-24} 23,${vbH-24}" fill="${acc}"/>
+        <rect x="2" y="${vbH/2-18}" width="16" height="36" rx="4" fill="#0d1117" opacity="0.8"/>
+        <text x="10" y="${vbH/2-4}" fill="${acc}" font-size="7" text-anchor="middle" font-weight="bold">HT</text>
+        <text x="10" y="${vbH/2+8}" fill="${acc}" font-size="6" text-anchor="middle">↕</text>
+      `,
+      neck: isFemale ? `
+        <ellipse cx="100" cy="59" rx="11" ry="4" fill="none" stroke="${acc}" stroke-width="2.5" stroke-dasharray="5,3"/>
+        <ellipse cx="100" cy="59" rx="11" ry="4" fill="${acc}" opacity="0.15"/>
+        <line x1="111" y1="59" x2="148" y2="50" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="148" cy="50" r="3" fill="${acc}"/>
+        <text x="151" y="47" fill="${acc}" font-size="9" font-weight="bold">Neck</text>
+        <text x="151" y="58" fill="${acc2}" font-size="7">measure here</text>
+      ` : `
+        <ellipse cx="100" cy="62" rx="13" ry="4.5" fill="none" stroke="${acc}" stroke-width="2.5" stroke-dasharray="5,3"/>
+        <ellipse cx="100" cy="62" rx="13" ry="4.5" fill="${acc}" opacity="0.15"/>
+        <line x1="113" y1="62" x2="150" y2="53" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="150" cy="53" r="3" fill="${acc}"/>
+        <text x="153" y="50" fill="${acc}" font-size="9" font-weight="bold">Neck</text>
+        <text x="153" y="61" fill="${acc2}" font-size="7">measure here</text>
+      `,
+      waist: isFemale ? `
+        <ellipse cx="100" cy="146" rx="26" ry="5" fill="none" stroke="${acc}" stroke-width="2.5" stroke-dasharray="5,3"/>
+        <ellipse cx="100" cy="146" rx="26" ry="5" fill="${acc}" opacity="0.15"/>
+        <line x1="126" y1="146" x2="155" y2="137" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="155" cy="137" r="3" fill="${acc}"/>
+        <text x="158" y="134" fill="${acc}" font-size="9" font-weight="bold">Waist</text>
+        <text x="158" y="145" fill="${acc2}" font-size="7">narrowest</text>
+        <text x="158" y="154" fill="${acc2}" font-size="7">point</text>
+      ` : `
+        <ellipse cx="100" cy="135" rx="36" ry="5.5" fill="none" stroke="${acc}" stroke-width="2.5" stroke-dasharray="5,3"/>
+        <ellipse cx="100" cy="135" rx="36" ry="5.5" fill="${acc}" opacity="0.15"/>
+        <line x1="136" y1="135" x2="158" y2="126" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="158" cy="126" r="3" fill="${acc}"/>
+        <text x="161" y="123" fill="${acc}" font-size="9" font-weight="bold">Waist</text>
+        <text x="161" y="134" fill="${acc2}" font-size="7">narrowest</text>
+        <text x="161" y="143" fill="${acc2}" font-size="7">point</text>
+      `,
+      hip: `
+        <ellipse cx="100" cy="${isFemale ? 172 : 160}" rx="${isFemale ? 42 : 38}" ry="6" fill="none" stroke="${acc}" stroke-width="2.5" stroke-dasharray="5,3"/>
+        <ellipse cx="100" cy="${isFemale ? 172 : 160}" rx="${isFemale ? 42 : 38}" ry="6" fill="${acc}" opacity="0.15"/>
+        <line x1="${isFemale ? 142 : 138}" y1="${isFemale ? 172 : 160}" x2="162" y2="${isFemale ? 162 : 150}" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="162" cy="${isFemale ? 162 : 150}" r="3" fill="${acc}"/>
+        <text x="165" y="${isFemale ? 159 : 147}" fill="${acc}" font-size="9" font-weight="bold">Hip</text>
+        <text x="165" y="${isFemale ? 170 : 158}" fill="${acc2}" font-size="7">widest</text>
+        <text x="165" y="${isFemale ? 179 : 167}" fill="${acc2}" font-size="7">point</text>
+      `,
+      weight: `
+        <rect x="62" y="${vbH-46}" width="76" height="34" rx="9" fill="#13181f" stroke="${acc}" stroke-width="1.5"/>
+        <rect x="66" y="${vbH-42}" width="68" height="22" rx="6" fill="#0d1117"/>
+        <text x="100" y="${vbH-27}" fill="${acc}" font-size="10" text-anchor="middle" font-weight="bold">SCALE</text>
+        <line x1="84" y1="${vbH-50}" x2="84" y2="${vbH-48}" stroke="${acc}" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <line x1="116" y1="${vbH-50}" x2="116" y2="${vbH-48}" stroke="${acc}" stroke-width="1.5" stroke-dasharray="3,2"/>
+        <polygon points="80,${vbH-48} 88,${vbH-48} 84,${vbH-44}" fill="${acc}"/>
+        <polygon points="112,${vbH-48} 120,${vbH-48} 116,${vbH-44}" fill="${acc}"/>
+      `,
+      age: `
+        <rect x="70" y="100" width="60" height="52" rx="8" fill="#13181f" stroke="${acc}" stroke-width="1.5"/>
+        <rect x="70" y="100" width="60" height="16" rx="8" fill="${acc}" opacity="0.2"/>
+        <line x1="70" y1="116" x2="130" y2="116" stroke="${acc}" stroke-width="1" opacity="0.5"/>
+        <text x="100" y="112" fill="${acc}" font-size="8" text-anchor="middle" font-weight="bold">AGE</text>
+        <text x="100" y="138" fill="${acc}" font-size="20" text-anchor="middle" font-weight="bold" opacity="0.7">?</text>
+      `,
+      s1: isFemale ? `
+        <circle cx="145" cy="116" r="10" fill="${acc}" opacity="0.18"/>
+        <circle cx="145" cy="116" r="10" fill="none" stroke="${acc}" stroke-width="2"/>
+        <circle cx="145" cy="116" r="3" fill="${acc}"/>
+        <line x1="155" y1="116" x2="172" y2="106" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="172" cy="106" r="3" fill="${acc}"/>
+        <text x="175" y="103" fill="${acc}" font-size="8" font-weight="bold">Tricep</text>
+        <text x="175" y="113" fill="${acc2}" font-size="7">back of</text>
+        <text x="175" y="122" fill="${acc2}" font-size="7">upper arm</text>
+      ` : `
+        <circle cx="78" cy="98" r="10" fill="${acc}" opacity="0.18"/>
+        <circle cx="78" cy="98" r="10" fill="none" stroke="${acc}" stroke-width="2"/>
+        <circle cx="78" cy="98" r="3" fill="${acc}"/>
+        <line x1="68" y1="98" x2="48" y2="88" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="48" cy="88" r="3" fill="${acc}"/>
+        <text x="4" y="85" fill="${acc}" font-size="8" font-weight="bold">Chest</text>
+        <text x="4" y="95" fill="${acc2}" font-size="7">diagonal</text>
+        <text x="4" y="104" fill="${acc2}" font-size="7">fold</text>
+      `,
+      s2: isFemale ? `
+        <circle cx="134" cy="158" r="10" fill="${acc}" opacity="0.18"/>
+        <circle cx="134" cy="158" r="10" fill="none" stroke="${acc}" stroke-width="2"/>
+        <circle cx="134" cy="158" r="3" fill="${acc}"/>
+        <line x1="144" y1="158" x2="162" y2="148" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="162" cy="148" r="3" fill="${acc}"/>
+        <text x="165" y="145" fill="${acc}" font-size="8" font-weight="bold">Suprailiac</text>
+        <text x="165" y="155" fill="${acc2}" font-size="7">above hip</text>
+        <text x="165" y="164" fill="${acc2}" font-size="7">bone</text>
+      ` : `
+        <circle cx="110" cy="136" r="10" fill="${acc}" opacity="0.18"/>
+        <circle cx="110" cy="136" r="10" fill="none" stroke="${acc}" stroke-width="2"/>
+        <circle cx="110" cy="136" r="3" fill="${acc}"/>
+        <circle cx="100" cy="136" r="2.5" fill="${skinShade}" opacity="0.5"/>
+        <line x1="120" y1="136" x2="155" y2="126" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="155" cy="126" r="3" fill="${acc}"/>
+        <text x="158" y="123" fill="${acc}" font-size="8" font-weight="bold">Abdomen</text>
+        <text x="158" y="133" fill="${acc2}" font-size="7">1in right of</text>
+        <text x="158" y="142" fill="${acc2}" font-size="7">navel</text>
+      `,
+      s3: isFemale ? `
+        <circle cx="68" cy="220" r="11" fill="${acc}" opacity="0.18"/>
+        <circle cx="68" cy="220" r="11" fill="none" stroke="${acc}" stroke-width="2"/>
+        <circle cx="68" cy="220" r="3" fill="${acc}"/>
+        <line x1="54" y1="192" x2="40" y2="192" stroke="${acc2}" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <line x1="54" y1="252" x2="40" y2="252" stroke="${acc2}" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <line x1="42" y1="192" x2="42" y2="252" stroke="${acc2}" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <line x1="57" y1="220" x2="28" y2="212" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="28" cy="212" r="3" fill="${acc}"/>
+        <text x="4" y="209" fill="${acc}" font-size="8" font-weight="bold">Thigh</text>
+        <text x="4" y="219" fill="${acc2}" font-size="7">midpoint</text>
+        <text x="4" y="228" fill="${acc2}" font-size="7">front</text>
+      ` : `
+        <circle cx="66" cy="212" r="11" fill="${acc}" opacity="0.18"/>
+        <circle cx="66" cy="212" r="11" fill="none" stroke="${acc}" stroke-width="2"/>
+        <circle cx="66" cy="212" r="3" fill="${acc}"/>
+        <line x1="52" y1="183" x2="38" y2="183" stroke="${acc2}" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <line x1="52" y1="243" x2="38" y2="243" stroke="${acc2}" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <line x1="40" y1="183" x2="40" y2="243" stroke="${acc2}" stroke-width="1" stroke-dasharray="3,2" opacity="0.6"/>
+        <line x1="55" y1="212" x2="26" y2="203" stroke="${acc}" stroke-width="1.5"/>
+        <circle cx="26" cy="203" r="3" fill="${acc}"/>
+        <text x="2" y="200" fill="${acc}" font-size="8" font-weight="bold">Thigh</text>
+        <text x="2" y="210" fill="${acc2}" font-size="7">midpoint</text>
+        <text x="2" y="219" fill="${acc2}" font-size="7">front</text>
+      `
+    };
+
+    const indicator = indicators[fieldId] || '';
+    const vbW = 220;
+
+    return `<svg viewBox="0 0 ${vbW} ${vbH}" xmlns="http://www.w3.org/2000/svg" style="width:100%;max-height:260px;display:block;margin:0 auto">
+      <rect width="${vbW}" height="${vbH}" fill="#0d1117" rx="14"/>
+      <!-- subtle grid -->
+      <line x1="0" y1="${vbH/2}" x2="${vbW}" y2="${vbH/2}" stroke="#ffffff" stroke-width="0.5" opacity="0.04"/>
+      <line x1="${vbW/2}" y1="0" x2="${vbW/2}" y2="${vbH}" stroke="#ffffff" stroke-width="0.5" opacity="0.04"/>
+      <g transform="translate(10,0)">${silhouette}</g>
+      <g transform="translate(10,0)">${indicator}</g>
+    </svg>`;
+  }
+
+  const tipText = {
+    height: 'Stand straight without shoes. Measure from floor to top of head.',
+    neck:   'Measure just below the larynx (Adam\'s apple). Keep tape horizontal and snug but not tight.',
+    waist:  'Measure at the narrowest point, just above the belly button. Stand relaxed, exhale gently — don\'t suck in.',
+    hip:    'Measure around the widest part of hips and buttocks. Feet together, tape horizontal all the way around.',
+    weight: 'Weigh yourself in the morning, after the bathroom, before eating. Use the same scale each time.',
+    age:    'Enter your age in whole years.',
+    s1:     { male: 'Chest: Pinch a diagonal fold halfway between your nipple and the front of the armpit.', female: 'Tricep: Pinch a vertical fold at the midpoint of the back of the upper arm, midway between shoulder and elbow.' },
+    s2:     { male: 'Abdomen: Pinch a vertical fold about 1 inch (2.5 cm) to the right of your navel.', female: 'Suprailiac: Pinch a diagonal fold just above the hip bone (iliac crest), along the natural crease.' },
+    s3:     'Thigh: Pinch a vertical fold at the front of the thigh, midway between hip and knee. Shift weight to the other leg so this thigh is relaxed.',
+  };
+
+  const tips = {
+    height: { title: 'How to Measure Height' },
+    neck:   { title: 'How to Measure Neck' },
+    waist:  { title: 'How to Measure Waist' },
+    hip:    { title: 'How to Measure Hip' },
+    weight: { title: 'How to Measure Weight' },
+    age:    { title: 'Age' },
+    s1:     { title: 'Skinfold Site 1' },
+    s2:     { title: 'Skinfold Site 2' },
+    s3:     { title: 'Skinfold — Thigh' },
+  };
+
   const fieldDefs = {
     navy: {
       male: [
-        { id: 'height',  label: 'Height',        unit: () => metric ? 'cm' : 'in' },
-        { id: 'neck',    label: 'Neck Circ.',     unit: () => metric ? 'cm' : 'in' },
-        { id: 'waist',   label: 'Waist Circ.',    unit: () => metric ? 'cm' : 'in' },
+        { id: 'height',  label: 'Height',        unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'neck',    label: 'Neck Circ.',     unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'waist',   label: 'Waist Circ.',    unit: () => metric ? 'cm' : 'in', tip: true },
       ],
       female: [
-        { id: 'height',  label: 'Height',         unit: () => metric ? 'cm' : 'in' },
-        { id: 'neck',    label: 'Neck Circ.',      unit: () => metric ? 'cm' : 'in' },
-        { id: 'waist',   label: 'Waist Circ.',     unit: () => metric ? 'cm' : 'in' },
-        { id: 'hip',     label: 'Hip Circ.',       unit: () => metric ? 'cm' : 'in', full: true },
+        { id: 'height',  label: 'Height',         unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'neck',    label: 'Neck Circ.',      unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'waist',   label: 'Waist Circ.',     unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'hip',     label: 'Hip Circ.',       unit: () => metric ? 'cm' : 'in', full: true, tip: true },
       ]
     },
     bmi: {
       male: [
-        { id: 'weight',  label: 'Weight',          unit: () => metric ? 'kg' : 'lbs' },
-        { id: 'height',  label: 'Height',           unit: () => metric ? 'cm' : 'in' },
-        { id: 'age',     label: 'Age',              unit: () => 'yrs' },
+        { id: 'weight',  label: 'Weight',          unit: () => metric ? 'kg' : 'lbs', tip: true },
+        { id: 'height',  label: 'Height',           unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'age',     label: 'Age',              unit: () => 'yrs', tip: true },
       ],
       female: [
-        { id: 'weight',  label: 'Weight',           unit: () => metric ? 'kg' : 'lbs' },
-        { id: 'height',  label: 'Height',            unit: () => metric ? 'cm' : 'in' },
-        { id: 'age',     label: 'Age',               unit: () => 'yrs' },
+        { id: 'weight',  label: 'Weight',           unit: () => metric ? 'kg' : 'lbs', tip: true },
+        { id: 'height',  label: 'Height',            unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'age',     label: 'Age',               unit: () => 'yrs', tip: true },
       ]
     },
     jackson: {
       male: [
-        { id: 'age',     label: 'Age',              unit: () => 'yrs' },
-        { id: 's1',      label: 'Chest Skinfold',   unit: () => 'mm' },
-        { id: 's2',      label: 'Abdomen Skinfold', unit: () => 'mm' },
-        { id: 's3',      label: 'Thigh Skinfold',   unit: () => 'mm' },
+        { id: 'age',     label: 'Age',              unit: () => 'yrs', tip: true },
+        { id: 's1',      label: 'Chest Skinfold',   unit: () => 'mm', tip: true },
+        { id: 's2',      label: 'Abdomen Skinfold', unit: () => 'mm', tip: true },
+        { id: 's3',      label: 'Thigh Skinfold',   unit: () => 'mm', tip: true },
       ],
       female: [
-        { id: 'age',     label: 'Age',               unit: () => 'yrs' },
-        { id: 's1',      label: 'Tricep Skinfold',   unit: () => 'mm' },
-        { id: 's2',      label: 'Suprailiac Skinfold',unit: () => 'mm' },
-        { id: 's3',      label: 'Thigh Skinfold',    unit: () => 'mm' },
+        { id: 'age',     label: 'Age',               unit: () => 'yrs', tip: true },
+        { id: 's1',      label: 'Tricep Skinfold',   unit: () => 'mm', tip: true },
+        { id: 's2',      label: 'Suprailiac Skinfold',unit: () => 'mm', tip: true },
+        { id: 's3',      label: 'Thigh Skinfold',    unit: () => 'mm', tip: true },
       ]
     }
   };
@@ -715,8 +1216,12 @@
 
   function toggleUnits() {
     metric = document.getElementById('unit-toggle').checked;
-    document.getElementById('lbl-imperial').style.color = metric ? 'var(--label)' : 'var(--accent)';
-    document.getElementById('lbl-metric').style.color = metric ? 'var(--accent)' : 'var(--label)';
+    const row = document.querySelector('.unit-toggle');
+    const fields = document.getElementById('fields-container');
+    const card = document.querySelector('.card');
+    row.classList.toggle('metric-active', metric);
+    fields.classList.toggle('metric-active', metric);
+    card.classList.toggle('metric-active', metric);
     renderFields();
   }
 
@@ -725,14 +1230,39 @@
     const defs = fieldDefs[method][gender];
     container.innerHTML = defs.map(f => `
       <div class="field${f.full ? ' full' : ''}">
-        <label for="${f.id}">${f.label}</label>
+        <div class="label-row">
+          <label for="${f.id}">${f.label}</label>
+          ${f.tip ? `<button class="info-btn" onclick="showTooltip('${f.id}')" type="button">i</button>` : ''}
+        </div>
         <div class="input-wrap">
           <input type="number" id="${f.id}" placeholder="0" step="0.1" min="0">
           <span class="unit">${f.unit()}</span>
         </div>
       </div>
     `).join('');
+    // Re-apply metric class after innerHTML wipe
+    container.classList.toggle('metric-active', metric);
     document.getElementById('method-note').innerHTML = methodNotes[method];
+  }
+
+  function showTooltip(fieldId) {
+    const tip = tips[fieldId];
+    if (!tip) return;
+    const svg = getBodySVG(fieldId, gender);
+    let bodyText = tipText[fieldId];
+    if (bodyText && typeof bodyText === 'object') {
+      bodyText = bodyText[gender] || bodyText.male;
+    }
+    document.getElementById('tooltip-title').textContent = tip.title;
+    document.getElementById('tooltip-body').innerHTML = `
+      <div style="margin-bottom:14px">${svg}</div>
+      <p style="font-size:13px;color:var(--label);line-height:1.65">${bodyText || ''}</p>
+    `;
+    document.getElementById('tooltip-overlay').classList.add('show');
+  }
+
+  function closeTooltip() {
+    document.getElementById('tooltip-overlay').classList.remove('show');
   }
 
   function getVal(id) {
