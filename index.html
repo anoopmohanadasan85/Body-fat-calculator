@@ -651,7 +651,14 @@
     <p class="subtitle">Measure. Understand. Improve.</p>
   </header>
 
-  <!-- Method Tabs -->
+  <!-- App Tab Navigation -->
+  <div class="method-tabs" style="margin-bottom:24px">
+    <button class="tab-btn active" id="app-tab-calc" onclick="switchAppTab('calc')">⚖ Calculator</button>
+    <button class="tab-btn" id="app-tab-progress" onclick="switchAppTab('progress')">📈 Progress</button>
+  </div>
+
+  <!-- ===== CALCULATOR TAB ===== -->
+  <div id="app-calc">
   <div class="method-tabs">
     <button class="tab-btn active" onclick="switchMethod('navy')">US Navy</button>
     <button class="tab-btn" onclick="switchMethod('bmi')">BMI-Based</button>
@@ -750,7 +757,78 @@
       </div>
     </div>
   </div>
-</div>
+
+  </div><!-- end #app-calc -->
+
+  <!-- ===== PROGRESS TAB ===== -->
+  <div id="app-progress" style="display:none">
+
+    <!-- Device notice -->
+    <div style="display:flex;align-items:flex-start;gap:10px;padding:12px 16px;background:rgba(0,184,255,0.06);border:1px solid rgba(0,184,255,0.18);border-radius:12px;margin-bottom:20px">
+      <span style="font-size:16px;flex-shrink:0">📱</span>
+      <p style="font-size:12px;color:var(--label);line-height:1.65;margin:0"><strong style="color:var(--accent2)">Device-only storage</strong> — Your progress is saved locally on this device and browser only. It will not sync across devices and will be lost if you clear your browser data. No account or login is required.</p>
+    </div>
+
+    <!-- Stats row -->
+    <div class="stats-grid" style="margin-bottom:20px" id="pt-stats">
+      <div class="stat-box">
+        <div class="stat-box-label">Current</div>
+        <div class="stat-box-value" id="pt-current" style="color:var(--muted)">--</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">First Entry</div>
+        <div class="stat-box-value" id="pt-first" style="color:var(--muted)">--</div>
+      </div>
+      <div class="stat-box">
+        <div class="stat-box-label">Change</div>
+        <div class="stat-box-value" id="pt-change" style="color:var(--muted)">--</div>
+      </div>
+    </div>
+
+    <!-- Chart -->
+    <div class="card" style="margin-bottom:20px">
+      <div style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label);margin-bottom:14px">Trend</div>
+      <div id="pt-empty-chart" style="text-align:center;padding:40px 0;color:var(--muted);font-size:13px">No entries yet — calculate your body fat % and log it below</div>
+      <canvas id="pt-chart" style="display:none"></canvas>
+    </div>
+
+    <!-- Goal estimator -->
+    <div class="card" style="margin-bottom:20px" id="pt-goal-card">
+      <div style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label);margin-bottom:14px">Goal Estimator</div>
+      <div style="display:flex;gap:10px;align-items:center;flex-wrap:wrap">
+        <span style="font-size:13px;color:var(--label)">Target category:</span>
+        <select id="pt-goal-select" onchange="updateGoal()" style="flex:1;padding:9px 12px;background:var(--surface2);border:1.5px solid var(--border);border-radius:8px;color:var(--text);font-size:13px;outline:none">
+          <option value="Essential Fat">Essential Fat</option>
+          <option value="Athletic">Athletic</option>
+          <option value="Fitness" selected>Fitness</option>
+          <option value="Average">Average</option>
+        </select>
+      </div>
+      <div id="pt-goal-result" style="margin-top:12px;padding:12px 14px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:10px;font-size:13px;color:var(--accent);line-height:1.65;display:none"></div>
+    </div>
+
+    <!-- History log -->
+    <div class="card" style="padding:0;overflow:hidden;margin-bottom:16px">
+      <div style="padding:14px 16px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center">
+        <span style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label)">History</span>
+        <button onclick="clearHistory()" style="font-size:11px;color:var(--muted);background:none;border:none;cursor:pointer;padding:0">Clear all</button>
+      </div>
+      <div id="pt-history" style="padding:0 16px">
+        <p style="font-size:13px;color:var(--muted);text-align:center;padding:24px 0;margin:0">No entries logged yet</p>
+      </div>
+    </div>
+
+    <!-- Log button -->
+    <button onclick="logLatestResult()" style="width:100%;padding:14px;border:1.5px dashed var(--border);border-radius:12px;background:transparent;color:var(--muted);font-family:'Syne',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all 0.2s" id="pt-log-btn"
+      onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'"
+      onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--muted)'">
+      + Log today's result from Calculator
+    </button>
+    <p style="font-size:12px;color:var(--muted);text-align:center;margin:10px 0 0;line-height:1.6">Run a calculation first, then tap above to save it to your progress log</p>
+
+  </div><!-- end #app-progress -->
+
+</div><!-- end .wrapper -->
 
 <!-- Tooltip overlay -->
 <div class="tooltip-overlay" id="tooltip-overlay" onclick="closeTooltip()">
@@ -1412,6 +1490,9 @@
     document.getElementById('result-card').classList.add('show');
     document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
 
+    // Store for progress tracker
+    lastResult = { bf, category: cat.label, color: cat.color };
+
     // Trigger guidance
     getAdvice(bf, cat.label, gender);
   }
@@ -1516,9 +1597,183 @@
     `;
   }
 
+  // ===== APP TAB SWITCHING =====
+  function switchAppTab(tab) {
+    document.getElementById('app-calc').style.display = tab === 'calc' ? 'block' : 'none';
+    document.getElementById('app-progress').style.display = tab === 'progress' ? 'block' : 'none';
+    document.getElementById('app-tab-calc').classList.toggle('active', tab === 'calc');
+    document.getElementById('app-tab-progress').classList.toggle('active', tab === 'progress');
+    if (tab === 'progress') renderProgress();
+  }
+
+  // ===== PROGRESS TRACKER =====
+  let ptChart = null;
+  let lastResult = null; // holds {bf, category, color, date}
+
+  const catTargetMax = {
+    male:   { 'Essential Fat': 5, 'Athletic': 13, 'Fitness': 17, 'Average': 24 },
+    female: { 'Essential Fat': 13, 'Athletic': 20, 'Fitness': 24, 'Average': 31 }
+  };
+
+  function getHistory() {
+    try { return JSON.parse(localStorage.getItem('bf_history') || '[]'); } catch(e) { return []; }
+  }
+
+  function saveHistory(h) {
+    localStorage.setItem('bf_history', JSON.stringify(h));
+  }
+
+  function logLatestResult() {
+    if (!lastResult) {
+      alert('Please run a calculation in the Calculator tab first, then come back to log it.');
+      return;
+    }
+    const h = getHistory();
+    h.unshift({ bf: lastResult.bf, category: lastResult.category, color: lastResult.color, date: new Date().toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' }), ts: Date.now() });
+    saveHistory(h);
+    renderProgress();
+    const btn = document.getElementById('pt-log-btn');
+    btn.textContent = '✓ Logged!';
+    btn.style.borderColor = 'var(--accent)';
+    btn.style.color = 'var(--accent)';
+    setTimeout(() => {
+      btn.textContent = '+ Log today\'s result from Calculator';
+      btn.style.borderColor = 'var(--border)';
+      btn.style.color = 'var(--muted)';
+    }, 2000);
+  }
+
+  function clearHistory() {
+    if (!confirm('Clear all progress history?')) return;
+    localStorage.removeItem('bf_history');
+    renderProgress();
+  }
+
+  function updateGoal() { renderProgress(); }
+
+  function renderProgress() {
+    const h = getHistory();
+    const histEl = document.getElementById('pt-history');
+    const chartCanvas = document.getElementById('pt-chart');
+    const emptyChart = document.getElementById('pt-empty-chart');
+
+    // Stats
+    if (h.length > 0) {
+      const cur = h[0];
+      const first = h[h.length - 1];
+      const change = cur.bf - first.bf;
+      document.getElementById('pt-current').textContent = cur.bf.toFixed(1) + '%';
+      document.getElementById('pt-current').style.color = cur.color;
+      document.getElementById('pt-first').textContent = first.bf.toFixed(1) + '%';
+      document.getElementById('pt-change').textContent = (change > 0 ? '+' : '') + change.toFixed(1) + '%';
+      document.getElementById('pt-change').style.color = change < 0 ? '#00e5a0' : '#ff6b4a';
+    } else {
+      document.getElementById('pt-current').textContent = '--';
+      document.getElementById('pt-first').textContent = '--';
+      document.getElementById('pt-change').textContent = '--';
+      ['pt-current','pt-first','pt-change'].forEach(id => document.getElementById(id).style.color = 'var(--muted)');
+    }
+
+    // Chart
+    if (h.length >= 2) {
+      emptyChart.style.display = 'none';
+      chartCanvas.style.display = 'block';
+      const reversed = [...h].reverse();
+      const labels = reversed.map(e => e.date);
+      const data = reversed.map(e => e.bf);
+      const pointColors = reversed.map(e => e.color);
+      if (ptChart) ptChart.destroy();
+      ptChart = new Chart(chartCanvas.getContext('2d'), {
+        type: 'line',
+        data: {
+          labels,
+          datasets: [{
+            data,
+            borderColor: '#00e5a0',
+            backgroundColor: 'rgba(0,229,160,0.07)',
+            borderWidth: 2.5,
+            pointBackgroundColor: pointColors,
+            pointBorderColor: '#0b0f14',
+            pointBorderWidth: 2,
+            pointRadius: 6,
+            tension: 0.4,
+            fill: true
+          }]
+        },
+        options: {
+          responsive: true,
+          plugins: {
+            legend: { display: false },
+            tooltip: {
+              backgroundColor: '#13181f', borderColor: '#252d38', borderWidth: 1,
+              titleColor: '#8a9bb0', bodyColor: '#00e5a0',
+              callbacks: { label: c => ` ${c.parsed.y.toFixed(1)}%` }
+            }
+          },
+          scales: {
+            x: { grid: { color: '#1a2028' }, ticks: { color: '#5a6a7e', font: { size: 11 }, maxTicksLimit: 5 } },
+            y: { grid: { color: '#1a2028' }, ticks: { color: '#5a6a7e', font: { size: 11 }, callback: v => v + '%' } }
+          }
+        }
+      });
+    } else {
+      emptyChart.style.display = 'block';
+      chartCanvas.style.display = 'none';
+      if (ptChart) { ptChart.destroy(); ptChart = null; }
+    }
+
+    // History rows
+    if (h.length === 0) {
+      histEl.innerHTML = '<p style="font-size:13px;color:var(--muted);text-align:center;padding:24px 0;margin:0">No entries logged yet</p>';
+    } else {
+      histEl.innerHTML = h.map((e, i) => `
+        <div style="display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid var(--border);font-size:13px">
+          <span style="color:var(--muted)">${e.date}</span>
+          <span style="color:var(--text);font-weight:600">${e.bf.toFixed(1)}%</span>
+          <span style="font-size:10px;padding:3px 10px;border-radius:20px;font-weight:600;background:${e.color}20;color:${e.color};border:1px solid ${e.color}40">${e.category}</span>
+          <button onclick="deleteEntry(${i})" style="background:none;border:none;color:var(--muted);cursor:pointer;font-size:16px;padding:0 4px">×</button>
+        </div>
+      `).join('');
+    }
+
+    // Goal estimator
+    const goalSelect = document.getElementById('pt-goal-select');
+    const goalResult = document.getElementById('pt-goal-result');
+    if (h.length >= 2) {
+      const targetCat = goalSelect.value;
+      const targetMax = catTargetMax[gender][targetCat];
+      const cur = h[0].bf;
+      const first = h[h.length - 1].bf;
+      const weeks = h.length > 1 ? Math.round((h[h.length-1].ts - h[0].ts) / (1000*60*60*24*7)) || 1 : 1;
+      const ratePerWeek = (first - cur) / weeks;
+      if (ratePerWeek > 0 && cur > targetMax) {
+        const weeksLeft = Math.ceil((cur - targetMax) / ratePerWeek);
+        goalResult.innerHTML = `🎯 At your current rate of <strong>${ratePerWeek.toFixed(2)}%/week</strong>, you'll reach <strong>${targetCat}</strong> in approximately <strong>${weeksLeft} weeks</strong>.`;
+        goalResult.style.display = 'block';
+      } else if (cur <= targetMax) {
+        goalResult.innerHTML = `✅ You've already reached <strong>${targetCat}</strong>! Consider setting a new goal.`;
+        goalResult.style.color = '#00e5a0';
+        goalResult.style.display = 'block';
+      } else {
+        goalResult.innerHTML = `📊 Log more entries over time to see your estimated timeline.`;
+        goalResult.style.display = 'block';
+      }
+    } else {
+      goalResult.style.display = 'none';
+    }
+  }
+
+  function deleteEntry(i) {
+    const h = getHistory();
+    h.splice(i, 1);
+    saveHistory(h);
+    renderProgress();
+  }
+
   // Init
   renderFields();
 
 </script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js"></script>
 </body>
 </html>
