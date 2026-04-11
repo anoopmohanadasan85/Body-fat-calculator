@@ -726,6 +726,26 @@
       <div class="range-title">Reference Ranges</div>
       <div id="ranges-table"></div>
     </div>
+
+    <!-- Guidance Section -->
+    <div id="advice-section" style="display:none;margin-top:24px;border-top:1px solid var(--border);padding-top:24px">
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
+        <span style="font-size:16px">💡</span>
+        <span style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label)">Personalised Guidance</span>
+      </div>
+      <div id="advice-content" style="font-size:14px;color:var(--label);line-height:1.75"></div>
+    </div>
+  </div>
+
+  <!-- Disclaimer -->
+  <div class="card" style="margin-top:20px;animation:fadeUp 0.6s 0.3s ease both">
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <span style="font-size:18px;flex-shrink:0">⚠️</span>
+      <div>
+        <div style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label);margin-bottom:8px">Disclaimer</div>
+        <p style="font-size:13px;color:var(--muted);line-height:1.7;margin:0">This tool provides general body composition estimates for informational purposes only. Results may vary depending on measurement accuracy and individual body type. This is <strong style="color:var(--label)">not a substitute for professional medical advice.</strong> Always consult a qualified healthcare provider before making changes to your diet or exercise routine.</p>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1142,11 +1162,13 @@
     navy: {
       male: [
         { id: 'height',  label: 'Height',        unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'weight',  label: 'Weight',         unit: () => metric ? 'kg' : 'lbs', tip: true },
         { id: 'neck',    label: 'Neck Circ.',     unit: () => metric ? 'cm' : 'in', tip: true },
         { id: 'waist',   label: 'Waist Circ.',    unit: () => metric ? 'cm' : 'in', tip: true },
       ],
       female: [
         { id: 'height',  label: 'Height',         unit: () => metric ? 'cm' : 'in', tip: true },
+        { id: 'weight',  label: 'Weight',         unit: () => metric ? 'kg' : 'lbs', tip: true },
         { id: 'neck',    label: 'Neck Circ.',      unit: () => metric ? 'cm' : 'in', tip: true },
         { id: 'waist',   label: 'Waist Circ.',     unit: () => metric ? 'cm' : 'in', tip: true },
         { id: 'hip',     label: 'Hip Circ.',       unit: () => metric ? 'cm' : 'in', full: true, tip: true },
@@ -1204,6 +1226,7 @@
     });
     renderFields();
     document.getElementById('result-card').classList.remove('show');
+    document.getElementById('advice-section').style.display = 'none';
   }
 
   function setGender(g) {
@@ -1212,16 +1235,17 @@
     document.getElementById('btn-female').classList.toggle('active', g === 'female');
     renderFields();
     document.getElementById('result-card').classList.remove('show');
+    document.getElementById('advice-section').style.display = 'none';
   }
 
   function toggleUnits() {
     metric = document.getElementById('unit-toggle').checked;
     const row = document.querySelector('.unit-toggle');
     const fields = document.getElementById('fields-container');
-    const card = document.querySelector('.card');
+    const inputCard = document.querySelector('.card');
     row.classList.toggle('metric-active', metric);
     fields.classList.toggle('metric-active', metric);
-    card.classList.toggle('metric-active', metric);
+    inputCard.classList.toggle('metric-active', metric);
     renderFields();
   }
 
@@ -1282,6 +1306,7 @@
 
     if (method === 'navy') {
       const h = toInches(getVal('height'));
+      const w = toKg(getVal('weight'));
       const neck = toInches(getVal('neck'));
       const waist = toInches(getVal('waist'));
       const hip = gender === 'female' ? toInches(getVal('hip')) : null;
@@ -1294,6 +1319,7 @@
       } else {
         bf = 163.205 * Math.log10(waist + hip - neck) - 97.684 * Math.log10(h) - 78.387;
       }
+      weightKg = w > 0 ? w : null;
 
     } else if (method === 'bmi') {
       const w = toKg(getVal('weight'));
@@ -1382,10 +1408,96 @@
 
     document.getElementById('result-card').classList.add('show');
     document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // Trigger guidance
+    getAdvice(bf, cat.label, gender);
+  }
+
+  const advice = {
+    male: {
+      'Essential Fat': {
+        intro: "You're operating at an extremely low body fat level — below what most health professionals consider sustainable long-term. While this level is sometimes seen in competitive athletes during peak season, it's not a place most people should aim to maintain year-round.",
+        steps: ["Increase your caloric intake gradually — your body needs sufficient fat for hormone production, joint protection, and organ function.", "Focus on healthy fat sources like avocados, nuts, olive oil, and fatty fish to bring your levels into a healthier range.", "If you're an athlete, work with a sports nutritionist to find a sustainable off-season body composition target.", "Get regular blood work done to monitor hormone levels, as very low body fat can affect testosterone and overall wellbeing."],
+        target: "Aim for the 6–13% athletic range for a sustainable, high-performance body composition. Small increases in healthy fats and overall calories will get you there."
+      },
+      'Athletic': {
+        intro: "You're in excellent shape — this is the body fat range of trained athletes and highly active individuals. Your body composition reflects real dedication to fitness and a consistently active lifestyle. Be proud of where you are.",
+        steps: ["Keep up your current training consistency — whatever you're doing is clearly working.", "Focus on recovery as much as performance: quality sleep, stress management, and adequate protein (0.7–1g per lb of bodyweight) will keep you here.", "Add variety to your workouts — mix strength, cardio, and mobility to prevent plateaus and injury.", "Eat to fuel performance, not just to look lean. Make sure you're not under-eating for your activity level."],
+        target: "You're already in a great place. The goal is maintenance and long-term sustainability. Staying in the 6–17% range is a healthy, realistic lifetime goal for active men."
+      },
+      'Fitness': {
+        intro: "You're in solid fitness territory — this is a healthy, sustainable range that most active men fall into. You have a good foundation to build on, and you're well ahead of average. A few consistent tweaks can take you to the next level.",
+        steps: ["Add 2–3 strength training sessions per week if you're not already — building muscle naturally lowers body fat percentage over time.", "Tighten up nutrition around processed foods and liquid calories (alcohol, sugary drinks) — these are usually the biggest lever.", "Aim for 7,000–10,000 steps per day as a baseline activity level outside of structured workouts.", "Prioritise protein at every meal — aim for 25–40g per sitting to support muscle retention and keep you full."],
+        target: "Targeting the 14–17% fitness range or even 10–13% athletic range is very achievable. Six months of consistent training and mindful eating can make a significant difference."
+      },
+      'Average': {
+        intro: "You're in the average range for men, which means there's a meaningful opportunity to improve your health and how you feel. The good news is this range responds quickly to lifestyle changes — you don't need anything drastic, just consistency.",
+        steps: ["Start with one simple change: a 20–30 minute walk every day. It costs nothing and builds the habit of daily movement.", "Reduce ultra-processed foods and replace one meal per day with whole foods — lean protein, vegetables, and a complex carb.", "Drink more water. Aim for 2–3 litres per day — it improves metabolism, reduces hunger, and supports every system in your body.", "Begin resistance training 2x per week. Even bodyweight exercises at home (push-ups, squats, lunges) are highly effective starters."],
+        target: "Aim for the 14–17% fitness range as your first milestone. At a realistic rate of 0.5–1lb of fat loss per week, you could be there in 2–4 months with consistent effort."
+      },
+      'Obese': {
+        intro: "Your body fat is in a range that carries real health risks — but the most important thing to know is that even modest improvements make a significant difference. You don't need to get to 10% to feel dramatically better. Small, consistent steps compound over time.",
+        steps: ["Start small and sustainable — a 15-minute daily walk is a legitimate and proven starting point. Build from there.", "Focus on reducing one category of food first: sugary drinks, fast food, or late-night snacking. Pick whichever is most relevant to you.", "See your GP or a healthcare provider for a baseline health check — blood pressure, blood sugar, and cholesterol are worth monitoring at this level.", "Find an activity you don't hate — swimming, cycling, dancing, or even gardening count. Enjoyment is the best predictor of consistency."],
+        target: "A 5–10% reduction in body weight has been shown to significantly improve blood pressure, blood sugar, and energy levels. Focus on that first, not an end-goal number."
+      }
+    },
+    female: {
+      'Essential Fat': {
+        intro: "Your body fat is below the level considered healthy for women long-term. Essential fat in women plays a critical role in hormonal function, bone health, and reproductive health. This level is not sustainable and may already be affecting how you feel.",
+        steps: ["Gradually increase caloric intake with nutrient-dense foods — healthy fats like nuts, seeds, avocado, and oily fish are a great starting point.", "Speak with a doctor or registered dietitian — they can help you find a healthy target range specific to your body and lifestyle.", "If you're an athlete, work with a coach to build a periodised plan that allows your body fat to stay in a healthier range outside competition.", "Monitor energy levels, mood, and menstrual cycle — these are important signals of whether your body has what it needs."],
+        target: "The 14–20% athletic range is a healthy, high-performance target for active women. Gradual, guided increases in food intake will help you get there safely."
+      },
+      'Athletic': {
+        intro: "You're in the athletic range — the body composition of women who train regularly and take their health seriously. This reflects real commitment, and it's a genuinely impressive place to be. Your body is strong, efficient, and well-conditioned.",
+        steps: ["Keep fuelling well — active women in this range need adequate calories. Under-eating at this level can impact hormones and performance.", "Prioritise sleep and recovery — at this fitness level, rest is where progress is made.", "Include mobility work and flexibility training to complement your strength and cardio — it protects longevity.", "Track how you feel, not just how you look — energy, strength, and mood are the real metrics of a healthy body composition."],
+        target: "You're already performing at a high level. Staying in the 14–24% range long-term is a healthy, realistic goal for active women. Focus on maintaining, not shrinking."
+      },
+      'Fitness': {
+        intro: "You're in the fitness range — a healthy, active body composition that's above average and well within a zone associated with good health outcomes. You have a strong foundation, and relatively small, sustainable changes can take you further if that's your goal.",
+        steps: ["Add or increase resistance training — it's the most effective tool for improving body composition, especially for women.", "Make sure you're eating enough protein: 0.6–0.8g per pound of bodyweight supports muscle tone and keeps you satisfied.", "Prioritise sleep — poor sleep increases cortisol, which drives fat storage particularly around the midsection.", "Limit alcohol if you drink regularly — it's one of the most overlooked contributors to body fat in otherwise healthy women."],
+        target: "The 14–20% athletic range is an achievable next milestone with consistent training and mindful eating over 3–6 months. But you're already in a healthy place — any progress is a bonus."
+      },
+      'Average': {
+        intro: "You're in the average range for women, which is a common and understandable place to be given modern lifestyles. The encouraging part is that this range is very responsive to changes — you don't need extreme measures, just consistent, manageable habits.",
+        steps: ["Start with daily movement — a 20–30 minute walk every day is one of the most effective and underrated changes you can make.", "Swap one processed meal per day for a balanced home-cooked option: lean protein, lots of vegetables, and a wholesome carb.", "Begin strength training — even 2 sessions per week of resistance exercise will shift your body composition meaningfully over 8–12 weeks.", "Manage stress actively — chronic stress raises cortisol which promotes fat storage. Yoga, breathing exercises, or even journalling can help."],
+        target: "Aim for the 21–24% fitness range as your first goal. With consistent effort, women typically see meaningful body composition changes within 8–12 weeks."
+      },
+      'Obese': {
+        intro: "Your body fat is in a range that affects health, energy, and quality of life — but it's important you know that you don't need to make dramatic changes to start feeling better. The research is clear: even a 5–10% reduction in body weight leads to significant improvements in health markers.",
+        steps: ["Begin with one habit you can actually sustain — a daily walk, cutting out sugary drinks, or cooking one extra meal at home per week.", "Don't diet — build a way of eating you can live with long-term. Focus on adding more vegetables and protein rather than restricting everything.", "Talk to your GP — they can check relevant health markers and may refer you to a dietitian or exercise physiologist who can support you properly.", "Find movement you enjoy — dancing, swimming, walking with a friend, yoga. The activity you'll actually do is infinitely better than the 'optimal' one you won't."],
+        target: "Start with a 5% reduction in body weight as your first milestone — not an end-goal number. From there, each small improvement builds on the last."
+      }
+    }
+  };
+
+  function getAdvice(bf, category, g) {
+    const adviceSection = document.getElementById('advice-section');
+    const adviceContent = document.getElementById('advice-content');
+    adviceSection.style.display = 'block';
+
+    const a = advice[g][category];
+    if (!a) return;
+
+    const stepsHTML = a.steps.map(s =>
+      `<div style="display:flex;gap:10px;margin-bottom:10px">
+        <span style="color:var(--accent);font-size:16px;line-height:1.4;flex-shrink:0">→</span>
+        <p style="margin:0;font-size:14px;color:var(--label);line-height:1.65">${s}</p>
+      </div>`
+    ).join('');
+
+    adviceContent.innerHTML = `
+      <p style="margin:0 0 16px;font-size:14px;color:var(--label);line-height:1.75">${a.intro}</p>
+      <div style="font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Where to start</div>
+      ${stepsHTML}
+      <div style="margin-top:16px;padding:14px 16px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:10px;font-size:13px;color:var(--accent);line-height:1.65">
+        🎯 ${a.target}
+      </div>
+    `;
   }
 
   // Init
   renderFields();
+
 </script>
 </body>
 </html>
