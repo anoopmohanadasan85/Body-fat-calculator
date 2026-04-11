@@ -728,12 +728,15 @@
     </div>
 
     <!-- Guidance Section -->
-    <div id="advice-section" style="display:none;margin-top:24px;border-top:1px solid var(--border);padding-top:24px">
-      <div style="display:flex;align-items:center;gap:8px;margin-bottom:14px">
-        <span style="font-size:16px">💡</span>
-        <span style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;color:var(--label)">Personalised Guidance</span>
+    <div id="advice-section" style="display:none;margin-top:24px">
+      <div id="advice-card" style="border-radius:14px;border:1px solid var(--border);overflow:hidden">
+        <div id="advice-header" style="padding:14px 20px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--border)">
+          <span style="font-size:16px">💡</span>
+          <span style="font-family:'Syne',sans-serif;font-size:11px;letter-spacing:3px;text-transform:uppercase;font-weight:600" id="advice-header-label">Personalised Guidance</span>
+          <span id="advice-badge" style="margin-left:auto;font-size:11px;padding:3px 12px;border-radius:20px;font-family:'Syne',sans-serif;font-weight:600"></span>
+        </div>
+        <div id="advice-content" style="padding:20px;font-size:14px;color:var(--label);line-height:1.75"></div>
       </div>
-      <div id="advice-content" style="font-size:14px;color:var(--label);line-height:1.75"></div>
     </div>
   </div>
 
@@ -1204,18 +1207,18 @@
 
   const categories = {
     male: [
-      { label: 'Essential Fat', min: 2,  max: 5,  color: '#00b8ff' },
-      { label: 'Athletic',      min: 6,  max: 13, color: '#00e5a0' },
-      { label: 'Fitness',       min: 14, max: 17, color: '#a8e600' },
-      { label: 'Average',       min: 18, max: 24, color: '#ffc107' },
-      { label: 'Obese',         min: 25, max: 100, color: '#ff6b4a' }
+      { label: 'Essential Fat', min: 2,  max: 5.9,  color: '#00b8ff' },
+      { label: 'Athletic',      min: 6,  max: 13.9, color: '#00e5a0' },
+      { label: 'Fitness',       min: 14, max: 17.9, color: '#a8e600' },
+      { label: 'Average',       min: 18, max: 24.9, color: '#ffc107' },
+      { label: 'Obese',         min: 25, max: 100,  color: '#ff6b4a' }
     ],
     female: [
-      { label: 'Essential Fat', min: 10, max: 13, color: '#00b8ff' },
-      { label: 'Athletic',      min: 14, max: 20, color: '#00e5a0' },
-      { label: 'Fitness',       min: 21, max: 24, color: '#a8e600' },
-      { label: 'Average',       min: 25, max: 31, color: '#ffc107' },
-      { label: 'Obese',         min: 32, max: 100, color: '#ff6b4a' }
+      { label: 'Essential Fat', min: 10, max: 13.9, color: '#00b8ff' },
+      { label: 'Athletic',      min: 14, max: 20.9, color: '#00e5a0' },
+      { label: 'Fitness',       min: 21, max: 24.9, color: '#a8e600' },
+      { label: 'Average',       min: 25, max: 31.9, color: '#ffc107' },
+      { label: 'Obese',         min: 32, max: 100,  color: '#ff6b4a' }
     ]
   };
 
@@ -1401,7 +1404,7 @@
       const isCurrent = bf >= c.min && bf <= c.max;
       return `<div class="range-row${isCurrent ? ' highlight-row' : ''}">
         <span><span class="range-dot" style="background:${c.color}"></span>${c.label}</span>
-        <span class="range-pct">${c.min}% – ${c.max === 100 ? '40%+' : c.max + '%'}</span>
+        <span class="range-pct">${c.min}% – ${c.max === 100 ? '40%+' : Math.floor(c.max) + '%'}</span>
         ${isCurrent ? `<span style="color:${c.color};font-size:11px;font-weight:700">▲ YOU</span>` : ''}
       </div>`;
     }).join('');
@@ -1473,14 +1476,32 @@
   function getAdvice(bf, category, g) {
     const adviceSection = document.getElementById('advice-section');
     const adviceContent = document.getElementById('advice-content');
+    const adviceHeader = document.getElementById('advice-header');
+    const adviceHeaderLabel = document.getElementById('advice-header-label');
+    const adviceBadge = document.getElementById('advice-badge');
     adviceSection.style.display = 'block';
 
     const a = advice[g][category];
     if (!a) return;
 
+    // Get the category colour from the categories array
+    const cat = categories[g].find(c => c.label === category) || categories[g][categories[g].length - 1];
+    const col = cat.color;
+
+    // Apply colour to header
+    adviceHeader.style.background = col + '18';
+    adviceHeader.style.borderBottomColor = col + '40';
+    adviceHeaderLabel.style.color = col;
+
+    // Apply badge
+    adviceBadge.textContent = category;
+    adviceBadge.style.background = col + '20';
+    adviceBadge.style.color = col;
+    adviceBadge.style.border = `1px solid ${col}40`;
+
     const stepsHTML = a.steps.map(s =>
       `<div style="display:flex;gap:10px;margin-bottom:10px">
-        <span style="color:var(--accent);font-size:16px;line-height:1.4;flex-shrink:0">→</span>
+        <span style="color:${col};font-size:15px;line-height:1.5;flex-shrink:0">→</span>
         <p style="margin:0;font-size:14px;color:var(--label);line-height:1.65">${s}</p>
       </div>`
     ).join('');
@@ -1489,7 +1510,7 @@
       <p style="margin:0 0 16px;font-size:14px;color:var(--label);line-height:1.75">${a.intro}</p>
       <div style="font-family:'Syne',sans-serif;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--muted);margin-bottom:12px">Where to start</div>
       ${stepsHTML}
-      <div style="margin-top:16px;padding:14px 16px;background:rgba(0,229,160,0.06);border:1px solid rgba(0,229,160,0.15);border-radius:10px;font-size:13px;color:var(--accent);line-height:1.65">
+      <div style="margin-top:16px;padding:14px 16px;background:${col}10;border:1px solid ${col}30;border-radius:10px;font-size:13px;color:${col};line-height:1.65">
         🎯 ${a.target}
       </div>
     `;
