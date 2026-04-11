@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Body Fat Calculator</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Body Fat">
+<link id="apple-touch-icon" rel="apple-touch-icon" href="">
+<script>
+  // Generate icon as a canvas and set it as apple-touch-icon
+  (function() {
+    const c = document.createElement('canvas');
+    c.width = 180; c.height = 180;
+    const ctx = c.getContext('2d');
+    // Background
+    const bg = ctx.createLinearGradient(0, 0, 180, 180);
+    bg.addColorStop(0, '#0b0f14');
+    bg.addColorStop(1, '#13181f');
+    ctx.fillStyle = bg;
+    ctx.roundRect(0, 0, 180, 180, 38);
+    ctx.fill();
+    // Grid lines
+    ctx.strokeStyle = 'rgba(255,255,255,0.05)';
+    ctx.lineWidth = 1;
+    for (let i = 0; i < 180; i += 24) {
+      ctx.beginPath(); ctx.moveTo(i,0); ctx.lineTo(i,180); ctx.stroke();
+      ctx.beginPath(); ctx.moveTo(0,i); ctx.lineTo(180,i); ctx.stroke();
+    }
+    // Circle outline
+    ctx.beginPath();
+    ctx.arc(90, 82, 54, 0, Math.PI * 2);
+    ctx.strokeStyle = 'rgba(255,255,255,0.08)';
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    // Arc fill (gradient)
+    const arc = ctx.createLinearGradient(36, 36, 144, 128);
+    arc.addColorStop(0, '#00e5a0');
+    arc.addColorStop(1, '#00b8ff');
+    ctx.beginPath();
+    ctx.arc(90, 82, 54, -Math.PI * 0.8, Math.PI * 0.2);
+    ctx.strokeStyle = arc;
+    ctx.lineWidth = 9;
+    ctx.lineCap = 'round';
+    ctx.stroke();
+    // % text
+    ctx.fillStyle = '#ffffff';
+    ctx.font = 'bold 36px system-ui';
+    ctx.textAlign = 'center';
+    ctx.textBaseline = 'middle';
+    ctx.fillText('%', 90, 80);
+    // Label
+    ctx.fillStyle = '#00e5a0';
+    ctx.font = 'bold 13px system-ui';
+    ctx.fillText('BODY FAT', 90, 148);
+    document.getElementById('apple-touch-icon').href = c.toDataURL('image/png');
+  })();
+</script>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #0b0f14;
+    --surface: #13181f;
+    --surface2: #1a2028;
+    --border: #252d38;
+    --accent: #00e5a0;
+    --accent2: #00b8ff;
+    --warn: #ff6b4a;
+    --text: #e8edf3;
+    --muted: #5a6a7e;
+    --label: #8a9bb0;
+  }
+
+- { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+font-family: ‘DM Sans’, sans-serif;
+background: var(–bg);
+color: var(–text);
+min-height: 100vh;
+display: flex;
+flex-direction: column;
+align-items: center;
+padding: 40px 16px 60px;
+}
+
+/* Background grid */
+body::before {
+content: ‘’;
+position: fixed;
+inset: 0;
+background-image:
+linear-gradient(var(–border) 1px, transparent 1px),
+linear-gradient(90deg, var(–border) 1px, transparent 1px);
+background-size: 48px 48px;
+opacity: 0.3;
+z-index: 0;
+pointer-events: none;
+}
+
+.wrapper {
+position: relative;
+z-index: 1;
+width: 100%;
+max-width: 680px;
+}
+
+header {
+text-align: center;
+margin-bottom: 40px;
+animation: fadeDown 0.6s ease both;
+}
+
+.eyebrow {
+font-family: ‘Syne’, sans-serif;
+font-size: 11px;
+letter-spacing: 4px;
+text-transform: uppercase;
+color: var(–accent);
+margin-bottom: 12px;
+}
+
+h1 {
+font-family: ‘Syne’, sans-serif;
+font-size: clamp(32px, 6vw, 52px);
+font-weight: 800;
+line-height: 1.05;
+color: var(–text);
+letter-spacing: -1px;
+}
+
+h1 span {
+background: linear-gradient(135deg, var(–accent), var(–accent2));
+-webkit-background-clip: text;
+-webkit-text-fill-color: transparent;
+background-clip: text;
+}
+
+.subtitle {
+margin-top: 10px;
+color: var(–label);
+font-size: 15px;
+font-weight: 300;
+}
+
+/* Method tabs */
+.method-tabs {
+display: flex;
+gap: 8px;
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 14px;
+padding: 6px;
+margin-bottom: 24px;
+animation: fadeUp 0.6s 0.1s ease both;
+}
+
+.tab-btn {
+flex: 1;
+padding: 10px;
+border: none;
+border-radius: 10px;
+background: transparent;
+color: var(–muted);
+font-family: ‘Syne’, sans-serif;
+font-size: 13px;
+font-weight: 600;
+cursor: pointer;
+transition: all 0.2s;
+letter-spacing: 0.5px;
+}
+
+.tab-btn.active {
+background: linear-gradient(135deg, var(–accent), var(–accent2));
+color: #0b0f14;
+}
+
+/* Card */
+.card {
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 20px;
+padding: 32px;
+margin-bottom: 20px;
+animation: fadeUp 0.6s 0.2s ease both;
+}
+
+/* Gender toggle */
+.gender-row {
+display: flex;
+gap: 12px;
+margin-bottom: 28px;
+}
+
+.gender-btn {
+flex: 1;
+padding: 14px;
+border: 1.5px solid var(–border);
+border-radius: 12px;
+background: var(–surface2);
+color: var(–label);
+font-family: ‘Syne’, sans-serif;
+font-size: 14px;
+font-weight: 600;
+cursor: pointer;
+transition: all 0.2s;
+display: flex;
+align-items: center;
+justify-content: center;
+gap: 8px;
+}
+
+.gender-btn.active {
+border-color: var(–accent);
+color: var(–accent);
+background: rgba(0, 229, 160, 0.07);
+}
+
+/* Field rows */
+.fields {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 16px;
+}
+
+.field {
+display: flex;
+flex-direction: column;
+gap: 8px;
+}
+
+.field.full { grid-column: 1 / -1; }
+
+label {
+font-size: 11px;
+font-weight: 500;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–label);
+}
+
+.input-wrap {
+position: relative;
+}
+
+input[type=“number”] {
+width: 100%;
+padding: 13px 52px 13px 16px;
+background: var(–surface2);
+border: 1.5px solid var(–border);
+border-radius: 10px;
+color: var(–text);
+font-family: ‘DM Sans’, sans-serif;
+font-size: 16px;
+font-weight: 400;
+outline: none;
+transition: border-color 0.2s;
+-moz-appearance: textfield;
+}
+
+input[type=“number”]::-webkit-inner-spin-button,
+input[type=“number”]::-webkit-outer-spin-button { -webkit-appearance: none; }
+
+input[type=“number”]:focus {
+border-color: var(–accent);
+}
+
+.unit {
+position: absolute;
+right: 14px;
+top: 50%;
+transform: translateY(-50%);
+font-size: 12px;
+color: var(–muted);
+pointer-events: none;
+font-weight: 500;
+}
+
+/* Unit system toggle */
+.unit-toggle {
+display: flex;
+align-items: center;
+gap: 10px;
+margin-bottom: 24px;
+font-size: 13px;
+color: var(–label);
+}
+
+.toggle-switch {
+position: relative;
+width: 44px;
+height: 24px;
+cursor: pointer;
+}
+
+.toggle-switch input { display: none; }
+
+.toggle-track {
+position: absolute;
+inset: 0;
+background: var(–surface2);
+border: 1.5px solid var(–border);
+border-radius: 24px;
+transition: all 0.25s;
+}
+
+.toggle-switch input:checked + .toggle-track {
+background: rgba(0, 229, 160, 0.15);
+border-color: var(–accent);
+}
+
+.toggle-thumb {
+position: absolute;
+top: 3px;
+left: 3px;
+width: 16px;
+height: 16px;
+background: var(–muted);
+border-radius: 50%;
+transition: all 0.25s;
+}
+
+.toggle-switch input:checked ~ .toggle-thumb {
+left: 23px;
+background: var(–accent);
+}
+
+.unit-label { font-weight: 500; }
+.unit-label.active { color: var(–accent); }
+
+/* Calculate button */
+.calc-btn {
+width: 100%;
+padding: 16px;
+margin-top: 28px;
+border: none;
+border-radius: 12px;
+background: linear-gradient(135deg, var(–accent), var(–accent2));
+color: #0a0f14;
+font-family: ‘Syne’, sans-serif;
+font-size: 15px;
+font-weight: 700;
+letter-spacing: 1px;
+text-transform: uppercase;
+cursor: pointer;
+transition: opacity 0.2s, transform 0.1s;
+}
+
+.calc-btn:hover { opacity: 0.9; }
+.calc-btn:active { transform: scale(0.99); }
+
+/* Result */
+.result-card {
+display: none;
+background: var(–surface);
+border: 1px solid var(–border);
+border-radius: 20px;
+padding: 32px;
+animation: fadeUp 0.5s ease both;
+}
+
+.result-card.show { display: block; }
+
+.result-header {
+display: flex;
+align-items: center;
+justify-content: space-between;
+margin-bottom: 28px;
+}
+
+.result-label {
+font-size: 11px;
+letter-spacing: 3px;
+text-transform: uppercase;
+color: var(–label);
+}
+
+.result-value {
+font-family: ‘Syne’, sans-serif;
+font-size: 64px;
+font-weight: 800;
+line-height: 1;
+letter-spacing: -2px;
+}
+
+.result-value sup {
+font-size: 24px;
+vertical-align: super;
+font-weight: 600;
+}
+
+.category-badge {
+padding: 8px 18px;
+border-radius: 100px;
+font-family: ‘Syne’, sans-serif;
+font-size: 13px;
+font-weight: 700;
+letter-spacing: 1px;
+text-transform: uppercase;
+}
+
+/* Progress bar */
+.progress-section { margin-bottom: 28px; }
+
+.progress-track {
+height: 10px;
+background: var(–surface2);
+border-radius: 10px;
+overflow: hidden;
+margin-bottom: 8px;
+position: relative;
+}
+
+.progress-bar {
+height: 100%;
+border-radius: 10px;
+transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+background: linear-gradient(90deg, var(–accent), var(–accent2));
+}
+
+.progress-labels {
+display: flex;
+justify-content: space-between;
+font-size: 11px;
+color: var(–muted);
+}
+
+/* Stats grid */
+.stats-grid {
+display: grid;
+grid-template-columns: 1fr 1fr;
+gap: 12px;
+}
+
+.stat-box {
+background: var(–surface2);
+border: 1px solid var(–border);
+border-radius: 12px;
+padding: 16px;
+}
+
+.stat-box-label {
+font-size: 11px;
+letter-spacing: 2px;
+text-transform: uppercase;
+color: var(–muted);
+margin-bottom: 6px;
+}
+
+.stat-box-value {
+font-family: ‘Syne’, sans-serif;
+font-size: 22px;
+font-weight: 700;
+}
+
+/* Range table */
+.range-section {
+margin-top: 24px;
+border-top: 1px solid var(–border);
+padding-top: 24px;
+}
+
+.range-title {
+font-size: 11px;
+letter-spacing: 3px;
+text-transform: uppercase;
+color: var(–label);
+margin-bottom: 14px;
+}
+
+.range-row {
+display: flex;
+justify-content: space-between;
+align-items: center;
+padding: 10px 0;
+border-bottom: 1px solid var(–border);
+font-size: 13px;
+}
+
+.range-row:last-child { border-bottom: none; }
+
+.range-dot {
+width: 8px;
+height: 8px;
+border-radius: 50%;
+display: inline-block;
+margin-right: 10px;
+}
+
+.range-pct { color: var(–muted); font-size: 12px; }
+
+.highlight-row { background: rgba(0, 229, 160, 0.05); border-radius: 8px; padding: 10px 8px; }
+
+/* Method description */
+.method-note {
+margin-top: 20px;
+padding: 14px 16px;
+background: rgba(0, 184, 255, 0.05);
+border: 1px solid rgba(0, 184, 255, 0.15);
+border-radius: 10px;
+font-size: 12.5px;
+color: var(–label);
+line-height: 1.6;
+}
+
+.method-note strong { color: var(–accent2); }
+
+/* Error */
+.error-msg {
+display: none;
+margin-top: 12px;
+padding: 12px 16px;
+background: rgba(255, 107, 74, 0.08);
+border: 1px solid rgba(255, 107, 74, 0.3);
+border-radius: 10px;
+font-size: 13px;
+color: var(–warn);
+}
+
+.error-msg.show { display: block; }
+
+/* Animations */
+@keyframes fadeDown {
+from { opacity: 0; transform: translateY(-20px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeUp {
+from { opacity: 0; transform: translateY(20px); }
+to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 480px) {
+.fields { grid-template-columns: 1fr; }
+.field.full { grid-column: 1; }
+.result-value { font-size: 48px; }
+.stats-grid { grid-template-columns: 1fr; }
+}
+</style>
+
+</head>
+<body>
+
+<div class="wrapper">
+  <header>
+    <div class="eyebrow">Health Analytics</div>
+    <h1>Body Fat<br><span>Calculator</span></h1>
+    <p class="subtitle">Measure. Understand. Improve.</p>
+  </header>
+
+  <!-- Method Tabs -->
+
+  <div class="method-tabs">
+    <button class="tab-btn active" onclick="switchMethod('navy')">US Navy</button>
+    <button class="tab-btn" onclick="switchMethod('bmi')">BMI-Based</button>
+    <button class="tab-btn" onclick="switchMethod('jackson')">Jackson-Pollock</button>
+  </div>
+
+  <!-- Input Card -->
+
+  <div class="card">
+    <!-- Unit toggle -->
+    <div class="unit-toggle">
+      <span class="unit-label" id="lbl-imperial" style="color:var(--accent)">Imperial</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="unit-toggle" onchange="toggleUnits()">
+        <div class="toggle-track"></div>
+        <div class="toggle-thumb"></div>
+      </label>
+      <span class="unit-label" id="lbl-metric">Metric</span>
+    </div>
+
+```
+<!-- Gender -->
+<div class="gender-row">
+  <button class="gender-btn active" id="btn-male" onclick="setGender('male')">♂ Male</button>
+  <button class="gender-btn" id="btn-female" onclick="setGender('female')">♀ Female</button>
+</div>
+
+<!-- Fields (dynamically rendered) -->
+<div class="fields" id="fields-container"></div>
+
+<div class="error-msg" id="error-msg">Please fill in all fields with valid values.</div>
+
+<button class="calc-btn" onclick="calculate()">Calculate Body Fat %</button>
+
+<div class="method-note" id="method-note"></div>
+```
+
+  </div>
+
+  <!-- Result Card -->
+
+  <div class="result-card" id="result-card">
+    <div class="result-header">
+      <div>
+        <div class="result-label">Body Fat Percentage</div>
+        <div class="result-value" id="result-value">--<sup>%</sup></div>
+      </div>
+      <div class="category-badge" id="category-badge">--</div>
+    </div>
+
+```
+<div class="progress-section">
+  <div class="progress-track">
+    <div class="progress-bar" id="progress-bar" style="width:0%"></div>
+  </div>
+  <div class="progress-labels">
+    <span>0%</span>
+    <span>Essential</span>
+    <span>Athletic</span>
+    <span>Fitness</span>
+    <span>Obese</span>
+    <span>40%+</span>
+  </div>
+</div>
+
+<div class="stats-grid">
+  <div class="stat-box">
+    <div class="stat-box-label">Fat Mass</div>
+    <div class="stat-box-value" id="fat-mass">--</div>
+  </div>
+  <div class="stat-box">
+    <div class="stat-box-label">Lean Mass</div>
+    <div class="stat-box-value" id="lean-mass">--</div>
+  </div>
+</div>
+
+<div class="range-section">
+  <div class="range-title">Reference Ranges</div>
+  <div id="ranges-table"></div>
+</div>
+```
+
+  </div>
+</div>
+
+<script>
+  let method = 'navy';
+  let gender = 'male';
+  let metric = false;
+
+  const methodNotes = {
+    navy: '<strong>US Navy Method</strong> — Uses neck, waist, and hip (females) circumference measurements along with height. Widely used and clinically validated.',
+    bmi: '<strong>BMI-Based Method</strong> — Estimates body fat from Body Mass Index, age, and sex. Quick but less precise than circumference methods.',
+    jackson: '<strong>Jackson-Pollock 3-Site</strong> — Uses skinfold caliper measurements at 3 body sites. More accurate but requires calipers.'
+  };
+
+  const fieldDefs = {
+    navy: {
+      male: [
+        { id: 'height',  label: 'Height',        unit: () => metric ? 'cm' : 'in' },
+        { id: 'neck',    label: 'Neck Circ.',     unit: () => metric ? 'cm' : 'in' },
+        { id: 'waist',   label: 'Waist Circ.',    unit: () => metric ? 'cm' : 'in' },
+      ],
+      female: [
+        { id: 'height',  label: 'Height',         unit: () => metric ? 'cm' : 'in' },
+        { id: 'neck',    label: 'Neck Circ.',      unit: () => metric ? 'cm' : 'in' },
+        { id: 'waist',   label: 'Waist Circ.',     unit: () => metric ? 'cm' : 'in' },
+        { id: 'hip',     label: 'Hip Circ.',       unit: () => metric ? 'cm' : 'in', full: true },
+      ]
+    },
+    bmi: {
+      male: [
+        { id: 'weight',  label: 'Weight',          unit: () => metric ? 'kg' : 'lbs' },
+        { id: 'height',  label: 'Height',           unit: () => metric ? 'cm' : 'in' },
+        { id: 'age',     label: 'Age',              unit: () => 'yrs' },
+      ],
+      female: [
+        { id: 'weight',  label: 'Weight',           unit: () => metric ? 'kg' : 'lbs' },
+        { id: 'height',  label: 'Height',            unit: () => metric ? 'cm' : 'in' },
+        { id: 'age',     label: 'Age',               unit: () => 'yrs' },
+      ]
+    },
+    jackson: {
+      male: [
+        { id: 'age',     label: 'Age',              unit: () => 'yrs' },
+        { id: 's1',      label: 'Chest Skinfold',   unit: () => 'mm' },
+        { id: 's2',      label: 'Abdomen Skinfold', unit: () => 'mm' },
+        { id: 's3',      label: 'Thigh Skinfold',   unit: () => 'mm' },
+      ],
+      female: [
+        { id: 'age',     label: 'Age',               unit: () => 'yrs' },
+        { id: 's1',      label: 'Tricep Skinfold',   unit: () => 'mm' },
+        { id: 's2',      label: 'Suprailiac Skinfold',unit: () => 'mm' },
+        { id: 's3',      label: 'Thigh Skinfold',    unit: () => 'mm' },
+      ]
+    }
+  };
+
+  const categories = {
+    male: [
+      { label: 'Essential Fat', min: 2,  max: 5,  color: '#00b8ff' },
+      { label: 'Athletic',      min: 6,  max: 13, color: '#00e5a0' },
+      { label: 'Fitness',       min: 14, max: 17, color: '#a8e600' },
+      { label: 'Average',       min: 18, max: 24, color: '#ffc107' },
+      { label: 'Obese',         min: 25, max: 100, color: '#ff6b4a' }
+    ],
+    female: [
+      { label: 'Essential Fat', min: 10, max: 13, color: '#00b8ff' },
+      { label: 'Athletic',      min: 14, max: 20, color: '#00e5a0' },
+      { label: 'Fitness',       min: 21, max: 24, color: '#a8e600' },
+      { label: 'Average',       min: 25, max: 31, color: '#ffc107' },
+      { label: 'Obese',         min: 32, max: 100, color: '#ff6b4a' }
+    ]
+  };
+
+  function switchMethod(m) {
+    method = m;
+    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+      b.classList.toggle('active', ['navy','bmi','jackson'][i] === m);
+    });
+    renderFields();
+    document.getElementById('result-card').classList.remove('show');
+  }
+
+  function setGender(g) {
+    gender = g;
+    document.getElementById('btn-male').classList.toggle('active', g === 'male');
+    document.getElementById('btn-female').classList.toggle('active', g === 'female');
+    renderFields();
+    document.getElementById('result-card').classList.remove('show');
+  }
+
+  function toggleUnits() {
+    metric = document.getElementById('unit-toggle').checked;
+    document.getElementById('lbl-imperial').style.color = metric ? 'var(--label)' : 'var(--accent)';
+    document.getElementById('lbl-metric').style.color = metric ? 'var(--accent)' : 'var(--label)';
+    renderFields();
+  }
+
+  function renderFields() {
+    const container = document.getElementById('fields-container');
+    const defs = fieldDefs[method][gender];
+    container.innerHTML = defs.map(f => `
+      <div class="field${f.full ? ' full' : ''}">
+        <label for="${f.id}">${f.label}</label>
+        <div class="input-wrap">
+          <input type="number" id="${f.id}" placeholder="0" step="0.1" min="0">
+          <span class="unit">${f.unit()}</span>
+        </div>
+      </div>
+    `).join('');
+    document.getElementById('method-note').innerHTML = methodNotes[method];
+  }
+
+  function getVal(id) {
+    const el = document.getElementById(id);
+    return el ? parseFloat(el.value) : null;
+  }
+
+  function toInches(val) { return metric ? val / 2.54 : val; }
+  function toCm(val)     { return metric ? val : val * 2.54; }
+  function toKg(val)     { return metric ? val : val * 0.453592; }
+
+  function calculate() {
+    document.getElementById('error-msg').classList.remove('show');
+    let bf = null;
+    let weightKg = null;
+    let heightCm = null;
+
+    if (method === 'navy') {
+      const h = toInches(getVal('height'));
+      const neck = toInches(getVal('neck'));
+      const waist = toInches(getVal('waist'));
+      const hip = gender === 'female' ? toInches(getVal('hip')) : null;
+
+      if (!h || !neck || !waist || (gender === 'female' && !hip)) {
+        showError(); return;
+      }
+      if (gender === 'male') {
+        bf = 86.010 * Math.log10(waist - neck) - 70.041 * Math.log10(h) + 36.76;
+      } else {
+        bf = 163.205 * Math.log10(waist + hip - neck) - 97.684 * Math.log10(h) - 78.387;
+      }
+
+    } else if (method === 'bmi') {
+      const w = toKg(getVal('weight'));
+      const hCm = toCm(getVal('height'));
+      const age = getVal('age');
+      if (!w || !hCm || !age) { showError(); return; }
+      const hM = hCm / 100;
+      const bmi = w / (hM * hM);
+      // Deurenberg formula
+      const sexFactor = gender === 'male' ? 1 : 0;
+      bf = 1.20 * bmi + 0.23 * age - 10.8 * sexFactor - 5.4;
+      weightKg = w;
+      heightCm = hCm;
+
+    } else if (method === 'jackson') {
+      const age = getVal('age');
+      const s1 = getVal('s1');
+      const s2 = getVal('s2');
+      const s3 = getVal('s3');
+      if (!age || !s1 || !s2 || !s3) { showError(); return; }
+      const sum = s1 + s2 + s3;
+      let density;
+      if (gender === 'male') {
+        density = 1.10938 - (0.0008267 * sum) + (0.0000016 * sum * sum) - (0.0002574 * age);
+      } else {
+        density = 1.0994921 - (0.0009929 * sum) + (0.0000023 * sum * sum) - (0.0001392 * age);
+      }
+      bf = (4.95 / density - 4.50) * 100;
+    }
+
+    bf = Math.max(2, Math.min(60, bf));
+    displayResult(bf, weightKg);
+  }
+
+  function showError() {
+    document.getElementById('error-msg').classList.add('show');
+  }
+
+  function displayResult(bf, weightKg) {
+    const bfRounded = bf.toFixed(1);
+    document.getElementById('result-value').innerHTML = `${bfRounded}<sup>%</sup>`;
+
+    // Category
+    const cats = categories[gender];
+    const cat = cats.find(c => bf >= c.min && bf <= c.max) || cats[cats.length - 1];
+    const badge = document.getElementById('category-badge');
+    badge.textContent = cat.label;
+    badge.style.background = cat.color + '20';
+    badge.style.color = cat.color;
+    badge.style.border = `1.5px solid ${cat.color}50`;
+    document.getElementById('result-value').style.color = cat.color;
+
+    // Progress (0-40%)
+    const pct = Math.min(100, (bf / 40) * 100);
+    setTimeout(() => {
+      document.getElementById('progress-bar').style.width = pct + '%';
+      document.getElementById('progress-bar').style.background =
+        `linear-gradient(90deg, var(--accent), ${cat.color})`;
+    }, 100);
+
+    // Fat / Lean mass (if we have weight)
+    const weightEl = document.getElementById('weight');
+    const wKg = weightKg || (weightEl ? toKg(parseFloat(weightEl.value) || 0) : 0);
+    if (wKg > 0) {
+      const fatKg = (bf / 100) * wKg;
+      const leanKg = wKg - fatKg;
+      const u = metric ? 'kg' : 'lbs';
+      const conv = metric ? 1 : 2.20462;
+      document.getElementById('fat-mass').textContent = (fatKg * conv).toFixed(1) + ' ' + u;
+      document.getElementById('lean-mass').textContent = (leanKg * conv).toFixed(1) + ' ' + u;
+    } else {
+      document.getElementById('fat-mass').textContent = 'Enter weight';
+      document.getElementById('lean-mass').textContent = 'Enter weight';
+    }
+
+    // Range table
+    const table = document.getElementById('ranges-table');
+    table.innerHTML = cats.map(c => {
+      const isCurrent = bf >= c.min && bf <= c.max;
+      return `<div class="range-row${isCurrent ? ' highlight-row' : ''}">
+        <span><span class="range-dot" style="background:${c.color}"></span>${c.label}</span>
+        <span class="range-pct">${c.min}% – ${c.max === 100 ? '40%+' : c.max + '%'}</span>
+        ${isCurrent ? `<span style="color:${c.color};font-size:11px;font-weight:700">▲ YOU</span>` : ''}
+      </div>`;
+    }).join('');
+
+    document.getElementById('result-card').classList.add('show');
+    document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  }
+
+  // Init
+  renderFields();
+</script>
+
+</body>
+</html>
