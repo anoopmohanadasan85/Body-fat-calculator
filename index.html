@@ -176,6 +176,26 @@
     color: #0b0f14;
   }
 
+  .method-btn {
+    flex: 1;
+    padding: 10px;
+    border: none;
+    border-radius: 10px;
+    background: transparent;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    letter-spacing: 0.5px;
+  }
+
+  .method-btn.active {
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    color: #0b0f14;
+  }
+
   /* Card */
   .card {
     background: var(--surface);
@@ -503,30 +523,47 @@
     text-transform: uppercase;
   }
 
-  /* Progress bar */
+  /* Segmented bar */
   .progress-section { margin-bottom: 28px; }
 
-  .progress-track {
-    height: 10px;
-    background: var(--surface2);
-    border-radius: 10px;
-    overflow: hidden;
-    margin-bottom: 8px;
+  .seg-item {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 9px;
+    font-weight: 700;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    transition: transform 0.3s ease, background 0.3s ease;
     position: relative;
   }
 
-  .progress-bar {
-    height: 100%;
-    border-radius: 10px;
-    transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
-    background: linear-gradient(90deg, var(--accent), var(--accent2));
+  .seg-item.active {
+    transform: scaleY(1.18);
+    border-radius: 4px;
+    z-index: 2;
   }
 
-  .progress-labels {
+  .seg-lbl-item {
     display: flex;
-    justify-content: space-between;
-    font-size: 11px;
+    flex-direction: column;
+    align-items: center;
+    transition: all 0.3s;
+  }
+
+  .seg-lbl-name {
+    font-size: 10px;
+    font-weight: 500;
     color: var(--muted);
+    margin-top: 5px;
+    white-space: nowrap;
+  }
+
+  .seg-lbl-range {
+    font-size: 9px;
+    color: var(--muted);
+    opacity: 0.6;
+    margin-top: 1px;
   }
 
   /* Stats grid */
@@ -556,44 +593,6 @@
     font-size: 22px;
     font-weight: 700;
   }
-
-  /* Range table */
-  .range-section {
-    margin-top: 24px;
-    border-top: 1px solid var(--border);
-    padding-top: 24px;
-  }
-
-  .range-title {
-    font-size: 11px;
-    letter-spacing: 3px;
-    text-transform: uppercase;
-    color: var(--label);
-    margin-bottom: 14px;
-  }
-
-  .range-row {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    padding: 10px 0;
-    border-bottom: 1px solid var(--border);
-    font-size: 13px;
-  }
-
-  .range-row:last-child { border-bottom: none; }
-
-  .range-dot {
-    width: 8px;
-    height: 8px;
-    border-radius: 50%;
-    display: inline-block;
-    margin-right: 10px;
-  }
-
-  .range-pct { color: var(--muted); font-size: 12px; }
-
-  .highlight-row { background: rgba(0, 229, 160, 0.05); border-radius: 8px; padding: 10px 8px; }
 
   /* Method description */
   .method-note {
@@ -660,9 +659,9 @@
   <!-- ===== CALCULATOR TAB ===== -->
   <div id="app-calc">
   <div class="method-tabs">
-    <button class="tab-btn active" onclick="switchMethod('navy')">US Navy</button>
-    <button class="tab-btn" onclick="switchMethod('bmi')">BMI-Based</button>
-    <button class="tab-btn" onclick="switchMethod('jackson')">Jackson-Pollock</button>
+    <button class="method-btn active" onclick="switchMethod('navy')">US Navy</button>
+    <button class="method-btn" onclick="switchMethod('bmi')">BMI-Based</button>
+    <button class="method-btn" onclick="switchMethod('jackson')">Jackson-Pollock</button>
   </div>
 
   <!-- Input Card -->
@@ -710,17 +709,9 @@
     </div>
 
     <div class="progress-section">
-      <div class="progress-track">
-        <div class="progress-bar" id="progress-bar" style="width:0%"></div>
-      </div>
-      <div class="progress-labels">
-        <span>0%</span>
-        <span>Essential</span>
-        <span>Athletic</span>
-        <span>Fitness</span>
-        <span>Obese</span>
-        <span>40%+</span>
-      </div>
+      <!-- Segmented bar -->
+      <div id="seg-bar" style="display:flex;gap:3px;height:28px;border-radius:10px;overflow:hidden;margin-bottom:8px"></div>
+      <div id="seg-labels" style="display:flex;gap:3px;margin-bottom:8px"></div>
     </div>
 
     <div class="stats-grid">
@@ -732,11 +723,6 @@
         <div class="stat-box-label">Lean Mass</div>
         <div class="stat-box-value" id="lean-mass">--</div>
       </div>
-    </div>
-
-    <div class="range-section">
-      <div class="range-title">Reference Ranges</div>
-      <div id="ranges-table"></div>
     </div>
 
     <!-- Guidance Section -->
@@ -1307,7 +1293,7 @@
 
   function switchMethod(m) {
     method = m;
-    document.querySelectorAll('.tab-btn').forEach((b, i) => {
+    document.querySelectorAll('.method-btn').forEach((b, i) => {
       b.classList.toggle('active', ['navy','bmi','jackson'][i] === m);
     });
     renderFields();
@@ -1440,6 +1426,37 @@
     displayResult(bf, weightKg);
   }
 
+  function renderSegmentedBar(cats, activeCat) {
+    const bar = document.getElementById('seg-bar');
+    const lbls = document.getElementById('seg-labels');
+    if (!bar || !lbls) return;
+
+    const TOTAL = 38; // 40 - 2 = total range width
+
+    bar.innerHTML = cats.map(c => {
+      const width = ((Math.min(c.max, 40) - c.min) / TOTAL * 100).toFixed(2);
+      const isActive = c.label === activeCat.label;
+      const dimColor = c.color + '28';
+      return `<div class="seg-item${isActive ? ' active' : ''}" style="
+        flex:${width};
+        background:${isActive ? c.color : dimColor};
+        color:${isActive ? '#0b0f14' : 'transparent'};
+        font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
+        display:flex;align-items:center;justify-content:center;
+      ">${isActive ? '&#9650; YOU' : ''}</div>`;
+    }).join('');
+
+    lbls.innerHTML = cats.map(c => {
+      const width = ((Math.min(c.max, 40) - c.min) / TOTAL * 100).toFixed(2);
+      const isActive = c.label === activeCat.label;
+      const maxLabel = c.max === 100 ? '40%+' : Math.floor(c.max) + '%';
+      return `<div class="seg-lbl-item" style="flex:${width};display:flex;flex-direction:column;align-items:center">
+        <div class="seg-lbl-name" style="color:${isActive ? c.color : 'var(--muted)'};font-weight:${isActive ? '700' : '400'};font-size:10px;margin-top:5px;white-space:nowrap;text-align:center">${c.label}</div>
+        <div style="font-size:9px;color:var(--muted);opacity:0.7;margin-top:1px">${c.min}–${maxLabel}</div>
+      </div>`;
+    }).join('');
+  }
+
   function showError() {
     document.getElementById('error-msg').classList.add('show');
   }
@@ -1458,14 +1475,6 @@
     badge.style.border = `1.5px solid ${cat.color}50`;
     document.getElementById('result-value').style.color = cat.color;
 
-    // Progress (0-40%)
-    const pct = Math.min(100, (bf / 40) * 100);
-    setTimeout(() => {
-      document.getElementById('progress-bar').style.width = pct + '%';
-      document.getElementById('progress-bar').style.background =
-        `linear-gradient(90deg, var(--accent), ${cat.color})`;
-    }, 100);
-
     // Fat / Lean mass (if we have weight)
     const weightEl = document.getElementById('weight');
     const wKg = weightKg || (weightEl ? toKg(parseFloat(weightEl.value) || 0) : 0);
@@ -1481,16 +1490,8 @@
       document.getElementById('lean-mass').textContent = 'Enter weight';
     }
 
-    // Range table
-    const table = document.getElementById('ranges-table');
-    table.innerHTML = cats.map(c => {
-      const isCurrent = bf >= c.min && bf <= c.max;
-      return `<div class="range-row${isCurrent ? ' highlight-row' : ''}">
-        <span><span class="range-dot" style="background:${c.color}"></span>${c.label}</span>
-        <span class="range-pct">${c.min}% – ${c.max === 100 ? '40%+' : Math.floor(c.max) + '%'}</span>
-        ${isCurrent ? `<span style="color:${c.color};font-size:11px;font-weight:700">▲ YOU</span>` : ''}
-      </div>`;
-    }).join('');
+    // Render segmented bar
+    renderSegmentedBar(cats, cat);
 
     document.getElementById('result-card').classList.add('show');
     document.getElementById('result-card').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
