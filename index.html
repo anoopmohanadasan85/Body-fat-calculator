@@ -1433,6 +1433,15 @@
 
     const TOTAL = 38; // 40 - 2 = total range width
 
+    // Short labels for narrow segments on mobile
+    const shortLabels = {
+      'Essential Fat': 'Ess.',
+      'Athletic': 'Athl.',
+      'Fitness': 'Fit',
+      'Average': 'Avg',
+      'Obese': 'Obese'
+    };
+
     bar.innerHTML = cats.map(c => {
       const width = ((Math.min(c.max, 40) - c.min) / TOTAL * 100).toFixed(2);
       const isActive = c.label === activeCat.label;
@@ -1441,8 +1450,8 @@
         flex:${width};
         background:${isActive ? c.color : dimColor};
         color:${isActive ? '#0b0f14' : 'transparent'};
-        font-size:9px;font-weight:700;letter-spacing:0.5px;text-transform:uppercase;
-        display:flex;align-items:center;justify-content:center;
+        font-size:9px;font-weight:700;letter-spacing:0.3px;text-transform:uppercase;
+        display:flex;align-items:center;justify-content:center;overflow:hidden;
       ">${isActive ? '&#9650; YOU' : ''}</div>`;
     }).join('');
 
@@ -1450,9 +1459,20 @@
       const width = ((Math.min(c.max, 40) - c.min) / TOTAL * 100).toFixed(2);
       const isActive = c.label === activeCat.label;
       const maxLabel = c.max === 100 ? '40%+' : Math.floor(c.max) + '%';
-      return `<div class="seg-lbl-item" style="flex:${width};display:flex;flex-direction:column;align-items:center">
-        <div class="seg-lbl-name" style="color:${isActive ? c.color : 'var(--muted)'};font-weight:${isActive ? '700' : '400'};font-size:10px;margin-top:5px;white-space:nowrap;text-align:center">${c.label}</div>
-        <div style="font-size:9px;color:var(--muted);opacity:0.7;margin-top:1px">${c.min}–${maxLabel}</div>
+      const rangeStr = `${c.min}–${maxLabel}`;
+      return `<div style="flex:${width};min-width:0;display:flex;flex-direction:column;align-items:center;overflow:hidden;padding:0 1px">
+        <div style="
+          color:${isActive ? c.color : 'var(--muted)'};
+          font-weight:${isActive ? '700' : '400'};
+          font-size:10px;
+          margin-top:5px;
+          width:100%;
+          text-align:center;
+          overflow:hidden;
+          text-overflow:ellipsis;
+          white-space:nowrap;
+        " title="${c.label}">${isActive ? c.label : shortLabels[c.label]}</div>
+        <div style="font-size:9px;color:var(--muted);opacity:0.7;margin-top:1px;width:100%;text-align:center;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${rangeStr}</div>
       </div>`;
     }).join('');
   }
